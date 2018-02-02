@@ -1344,14 +1344,14 @@ public extension Parser {
         /// Stage
         try consumeOneOrMore(.newLine)
         try consume(.keyword(.stage))
-        let stage: Module.Stage = try withPeekedToken("'raw' or 'canonical'", { tok in
+        let stage: Module.Stage = try withPeekedToken("'raw' or 'optimizable'", { tok in
             switch tok.kind {
             case .keyword(.raw):
                 consumeToken()
                 return .raw
-            case .keyword(.canonical):
+            case .keyword(.optimizable):
                 consumeToken()
-                return .canonical
+                return .optimizable
             default: return nil
             }
         })
