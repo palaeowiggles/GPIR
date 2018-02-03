@@ -930,7 +930,7 @@ extension Use : Verifiable {
     public func performVerification() throws {
         /// Verify value if not function
         switch self {
-        case .function: break
+        case .definition(.function): break
         default: try value.performVerification()
         }
         /// Type must be valid

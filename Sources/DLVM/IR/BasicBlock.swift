@@ -29,7 +29,7 @@ public class Argument : Value, Named, HashableByReference {
     }
 
     public func makeUse() -> Use {
-        return .argument(self)
+        return .definition(.argument(self))
     }
 }
 

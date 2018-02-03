@@ -142,7 +142,7 @@ public enum InstructionKind {
     case trap
 }
 
-public final class Instruction : IRUnit, MaybeNamed {
+public final class Instruction : IRUnit, NamedValue {
     public typealias Parent = BasicBlock
     public var name: String?
     public var kind: InstructionKind
@@ -165,7 +165,7 @@ extension Instruction : Value {
     }
 
     public func makeUse() -> Use {
-        return .instruction(self)
+        return .definition(.instruction(self))
     }
 }
 
@@ -609,8 +609,8 @@ extension InstructionKind {
              let .transpose(op), let .reverse(op, dims: _), let .slice(op, at: _),
              let .shapeCast(op, _), let .dataTypeCast(op, _), let .bitCast(op, _),
              let .return(op?), let .padShape(op, at: _), let .squeezeShape(op, at: _),
-             let .extract(from: op, at: _), let .branchEnum(op, _), let .store(op, _),
-             let .load(op), let .elementPointer(op, _), let .deallocate(op),
+             let .extract(from: op, at: _), let .branchEnum(op, _), let .load(op),
+             let .store(op, _), let .elementPointer(op, _), let .deallocate(op),
              let .allocateHeap(_, count: op), let .projectBox(op),
              let .release(op), let .retain(op), let .destroyStack(op),
              let .pop(_, from: op):

@@ -216,7 +216,7 @@ open class AlgebraicExpressionAnalysis : AnalysisPass {
             from use: Use,
             isEntry: Bool = false) -> AlgebraicExpression {
             /// If not an instruction in the current basic block, it's an atom
-            guard case let .instruction(inst) = use, inst.parent == bb else {
+            guard let inst = use.instruction, inst.parent == bb else {
                 return .atom(use)
             }
             /// Treat nodes with more than one users as atoms when and only when

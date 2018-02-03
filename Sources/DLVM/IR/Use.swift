@@ -20,41 +20,26 @@
 import CoreOp
 
 public indirect enum Use : Equatable {
-    case argument(Argument)
-    case instruction(Instruction)
-    case variable(Variable)
     case literal(Type, Literal)
-    case function(Function)
+    case definition(Definition)
 }
 
 public extension Use {
     var type: Type {
         get {
             switch self {
-            case .argument(let x):
-                return x.type
-            case .instruction(let x):
-                return x.type
-            case .variable(let x):
-                return x.type
-            case .function(let x):
-                return x.type
-            case .literal(let t, _):
+            case let .literal(t, _):
                 return t
+            case let .definition(x):
+                return x.type
             }
         }
         set(newType) {
             switch self {
-            case let .argument(x):
-                self = .argument(x)
-            case let .instruction(x):
-                self = .instruction(x)
-            case let .variable(x):
-                self = .variable(x)
             case let .literal(_, x):
                 self = .literal(newType, x)
-            case let .function(x):
-                self = .function(x)
+            case let .definition(x):
+                self = .definition(x)
             }
         }
     }
@@ -65,11 +50,8 @@ public extension Use {
 
     var value: Value {
         switch self {
-        case let .argument(val): return val
-        case let .variable(val): return val
-        case let .instruction(val): return val
-        case let .function(val): return val
         case let .literal(ty, lit): return LiteralValue(type: ty, literal: lit)
+        case let .definition(def): return def
         }
     }
 
@@ -79,19 +61,19 @@ public extension Use {
 
     var name: String? {
         switch self {
-        case let .variable(def): return def.name
-        case let .instruction(def): return def.name
-        case let .argument(def): return def.name
-        case let .function(def): return def.name
         case .literal: return nil
+        case let .definition(def): return def.name
         }
     }
 
     var instruction: Instruction? {
-        guard case let .instruction(inst) = self else {
-            return nil
-        }
+        guard case let .definition(.instruction(inst)) = self else { return nil }
         return inst
+    }
+
+    var variable: Variable? {
+        guard case let .definition(.variable(variable)) = self else { return nil }
+        return variable
     }
 }
 
