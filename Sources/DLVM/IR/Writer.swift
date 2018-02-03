@@ -162,9 +162,9 @@ extension InstructionKind : TextOutputStreamable {
     public func write<Target : TextOutputStream>(to target: inout Target) {
         switch self {
         case let .branch(bb, args):
-            target.write("branch '\(bb.name)(\(args.joinedDescription))")
+            target.write("branch '\(bb.printedName)(\(args.joinedDescription))")
         case let .conditional(op, thenBB, thenArgs, elseBB, elseArgs):
-            target.write("conditional \(op) then '\(thenBB.name)(\(thenArgs.joinedDescription)) else '\(elseBB.name)(\(elseArgs.joinedDescription))")
+            target.write("conditional \(op) then '\(thenBB.printedName)(\(thenArgs.joinedDescription)) else '\(elseBB.printedName)(\(elseArgs.joinedDescription))")
         case let .return(op):
             target.write("return")
             if let op = op {
@@ -249,7 +249,7 @@ extension InstructionKind : TextOutputStreamable {
         case let .branchEnum(e1, branches):
             target.write("branchEnum \(e1)")
             for (name, bb) in branches {
-                target.write(" case ?\(name) '\(bb.name)")
+                target.write(" case ?\(name) '\(bb.printedName)")
             }
         case let .allocateStack(t, n):
             target.write("allocateStack \(t) count \(n)")
@@ -286,10 +286,6 @@ extension InstructionKind : TextOutputStreamable {
 }
 
 extension Instruction : TextOutputStreamable {
-    public var printedName: String? {
-        return name ?? (type.isVoid ? nil : "\(parent.indexInParent).\(indexInParent)")
-    }
-
     public func write<Target : TextOutputStream>(to target: inout Target) {
         if let name = printedName {
             target.write("%\(name) = ")
@@ -300,7 +296,7 @@ extension Instruction : TextOutputStreamable {
 
 extension Variable : TextOutputStreamable {
     public func write<Target : TextOutputStream>(to target: inout Target) {
-        target.write("var @\(name): \(valueType)")
+        target.write("var @\(printedName): \(valueType)")
     }
 }
 
@@ -335,13 +331,13 @@ extension Use : TextOutputStreamable {
         case let .literal(_, lit):
             return lit.description
         case let .definition(.variable(ref)):
-            return "@\(ref.name)"
+            return "@\(ref.printedName)"
         case let .definition(.instruction(ref)):
             return ref.printedName.flatMap{"%\($0)"} ?? "%_"
         case let .definition(.argument(ref)):
-            return "%\(ref.name)"
+            return "%\(ref.printedName)"
         case let .definition(.function(ref)):
-            return "@\(ref.name)"
+            return "@\(ref.printedName)"
         }
     }
 }
@@ -353,7 +349,7 @@ extension BasicBlock : TextOutputStreamable {
 
     public func write<Target : TextOutputStream>(to target: inout Target) {
         /// Begin block
-        target.write("'\(name)(\(arguments.map{"\($0)"}.joined(separator: ", "))):\n")
+        target.write("'\(printedName)(\(arguments.map{"\($0)"}.joined(separator: ", "))):\n")
         for inst in elements {
             /// Write indentation
             makeIndentation().write(to: &target)
@@ -365,7 +361,7 @@ extension BasicBlock : TextOutputStreamable {
 
 extension Argument : TextOutputStreamable {
     public func write<Target>(to target: inout Target) where Target : TextOutputStream {
-        target.write("%\(name): \(type)")
+        target.write("%\(printedName): \(type)")
     }
 }
 
@@ -388,7 +384,7 @@ extension Function : TextOutputStreamable {
         case .external?:
             target.write("[extern]\n")
         case let .adjoint(config)?:
-            target.write("[adjoint @\(config.primal.name)")
+            target.write("[adjoint @\(config.primal.printedName)")
             config.sourceIndex.ifAny {
                 target.write(" from \($0)")
             }
@@ -406,7 +402,7 @@ extension Function : TextOutputStreamable {
             break
         }
         target.write("func ")
-        target.write("@\(name): \(type)")
+        target.write("@\(printedName): \(type)")
         if isDefinition {
             target.write(" {\n")
             for bb in self {

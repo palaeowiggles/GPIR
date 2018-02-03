@@ -38,13 +38,8 @@ public extension Value {
     }
 }
 
-/// Anything that has a name
-public protocol Named {
-    var name: String { get }
-}
-
-/// A named value
-public protocol NamedValue : Value {
+/// Named value
+public protocol NamedValue : Value, AnyObject {
     var name: String? { get }
 }
 
@@ -54,7 +49,7 @@ public protocol User {
 }
 
 /// Definition
-public enum Definition : Hashable, NamedValue {
+public enum Definition : Hashable {
     case argument(Argument)
     case function(Function)
     case instruction(Instruction)
@@ -62,61 +57,28 @@ public enum Definition : Hashable, NamedValue {
 }
 
 public extension Definition {
+    var value: NamedValue {
+        switch self {
+        case let .argument(v): return v
+        case let .instruction(v): return v
+        case let .variable(v): return v
+        case let .function(v): return v
+        }
+    }
+    
     var type: Type {
-        get {
-            switch self {
-            case .argument(let x):
-                return x.type
-            case .instruction(let x):
-                return x.type
-            case .variable(let x):
-                return x.type
-            case .function(let x):
-                return x.type
-            }
-        }
-        set {
-            switch self {
-            case let .argument(x):
-                self = .argument(x)
-            case let .instruction(x):
-                self = .instruction(x)
-            case let .variable(x):
-                self = .variable(x)
-            case let .function(x):
-                self = .function(x)
-            }
-        }
+        return value.type
     }
 
     var name: String? {
-        switch self {
-        case .argument(let x):
-            return x.name
-        case .instruction(let x):
-            return x.name
-        case .variable(let x):
-            return x.name
-        case .function(let x):
-            return x.name
-        }
+        return value.name
     }
 
-    public func makeUse() -> Use {
-        switch self {
-        case .argument(let x): return x.makeUse()
-        case .instruction(let x): return x.makeUse()
-        case .variable(let x): return x.makeUse()
-        case .function(let x): return x.makeUse()
-        }
+    func makeUse() -> Use {
+        return value.makeUse()
     }
-
-    public func performVerification() throws {
-        switch self {
-        case .argument(let x): try x.performVerification()
-        case .instruction(let x): try x.performVerification()
-        case .variable(let x): try x.performVerification()
-        case .function(let x): try x.performVerification()
-        }
+    
+    static prefix func % (definition: Definition) -> Use {
+        return definition.makeUse()
     }
 }

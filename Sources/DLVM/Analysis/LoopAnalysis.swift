@@ -206,12 +206,14 @@ public extension LoopInfo {
 
 extension Loop {
     func insertBlock(_ bb: BasicBlock, before other: BasicBlock) {
-        precondition(contains(other), "Loop does not contain basic block \(other.name)")
+        precondition(contains(other),
+                     "Loop does not contain basic block \(other.printedName)")
         blocks.insert(bb, before: other)
     }
 
     func insertBlock(_ bb: BasicBlock, after other: BasicBlock) {
-        precondition(contains(other), "Loop does not contain basic block \(other.name)")
+        precondition(contains(other),
+                     "Loop does not contain basic block \(other.printedName)")
         blocks.insert(bb, after: other)
     }
 }

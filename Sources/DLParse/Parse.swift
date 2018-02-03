@@ -878,15 +878,11 @@ extension Parser {
                 let args = try parseUseList(in: basicBlock,
                                             unless: { $0.kind == .punctuation(.rightParenthesis) })
                 try consume(.punctuation(.rightParenthesis))
-                let (allegedTy, _) = try parseTypeSignature()
-                /* TODO: Uncomment this when scanned prototypes have full types
+                let (typeSig, typeSigRange) = try parseTypeSignature()
                 guard typeSig == fn.type else {
                     throw ParseError.typeMismatch(expected: fn.type, typeSigRange)
                 }
-                 */
-                var use = fn.makeUse()
-                use.type = allegedTy
-                return .apply(use, args)
+                return .apply(fn.makeUse(), args)
             }
 
         /// 'allocateStack' <type> 'count' <num>
@@ -1115,7 +1111,9 @@ extension Parser {
             let arg = Argument(name: name, type: type, parent: bb)
             bb.arguments.append(arg)
             /// Insert arguments into symbol table.
-            environment.locals[arg.name] = arg
+            if let name = arg.name {
+                environment.locals[name] = arg
+            }
         }
         /// Parse instructions.
         while let inst = try parseInstruction(in: bb) {
@@ -1266,7 +1264,7 @@ extension Parser {
         try consume(.keyword(.var))
         let (name, _) = try parseIdentifier(ofKind: .global, isDefinition: true)
         let (type, _) = try parseTypeSignature()
-        let variable = Variable(name: name, valueType: type)
+        let variable = Variable(name: name, valueType: type, parent: module)
         environment.globals[name] = variable
         return variable
     }

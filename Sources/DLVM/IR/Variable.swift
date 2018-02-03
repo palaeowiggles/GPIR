@@ -1,5 +1,5 @@
 //
-//  GlobalVariable.swift
+//  Variable.swift
 //  DLVM
 //
 //  Copyright 2016-2018 The DLVM Team.
@@ -18,14 +18,17 @@
 //
 
 /// Global variable
-public class Variable: Named, HashableByReference {
-    public var name: String
+public class Variable : NamedValue, HashableByReference {
+    public var name: String?
     /// The type of the underlying value of the variable
     public var valueType: Type
+    
+    unowned var parent: Module
 
-    public init(name: String, valueType: Type) {
+    public init(name: String?, valueType: Type, parent: Module) {
         self.name = name
         self.valueType = valueType
+        self.parent = parent
     }
 
     /// The pointer type wrapping the value type of the variable
@@ -37,5 +40,13 @@ public class Variable: Named, HashableByReference {
 extension Variable : Value {
     public func makeUse() -> Use {
         return .definition(.variable(self))
+    }
+}
+
+public extension Variable {
+    var printedName: String {
+        if let name = name { return name }
+        let selfIndex = parent.variables.index(of: self) ?? DLImpossibleResult()
+        return selfIndex.description
     }
 }

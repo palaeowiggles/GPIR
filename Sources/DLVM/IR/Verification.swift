@@ -123,12 +123,24 @@ private func verifyIdentifier<Unit : Verifiable>(_ id: String, in unit: Unit) th
 }
 
 extension Module : Verifiable {
-    private func verify<T: Verifiable & Named>(_ declaration: T, namespace: inout Set<String>) throws {
-        guard !namespace.contains(declaration.name) else {
-            throw VerificationError.redeclared(declaration)
+    private func verify<T: Verifiable & NamedValue>
+        (_ declaration: T, namespace: inout Set<String>) throws {
+        if let name = declaration.name {
+            guard namespace.contains(name) else {
+                throw VerificationError.redeclared(declaration)
+            }
+            namespace.insert(name)
         }
         try declaration.performVerification()
+    }
+    
+    private func verify<T: Verifiable & NominalType>
+        (_ declaration: T, namespace: inout Set<String>) throws {
+        guard namespace.contains(declaration.name) else {
+            throw VerificationError.redeclared(declaration)
+        }
         namespace.insert(declaration.name)
+        try declaration.performVerification()
     }
 
     public func performVerification() throws {
@@ -270,7 +282,9 @@ extension Function : Verifiable {
     }
 
     public func performVerification() throws {
-        try verifyIdentifier(name, in: self)
+        if let name = name {
+            try verifyIdentifier(name, in: self)
+        }
 
         /// Verify declaration
         if let declarationKind = declarationKind {
@@ -309,14 +323,17 @@ extension Function : Verifiable {
         /// Verify basic blocks
         for bb in self {
             /// Check for redeclaration/redefinition
-            guard !bbNames.contains(bb.name) else {
-                throw VerificationError.redeclared(bb)
+            if let name = bb.name {
+                guard !bbNames.contains(name) else {
+                    throw VerificationError.redeclared(bb)
+                }
+                bbNames.insert(name)
             }
             /// Check entry block arguments
             guard !bb.isEntry || bb.arguments.map({ $0.type }).elementsEqual(argumentTypes) else {
                 throw VerificationError.functionEntryArgumentMismatch(bb, self)
             }
-            bbNames.insert(bb.name)
+            
             /// Verify bb
             try bb.performVerification()
             /// Verify that bb parent is self
@@ -350,7 +367,9 @@ extension Function : Verifiable {
 
 extension BasicBlock : Verifiable {
     public func performVerification() throws {
-        try verifyIdentifier(name, in: self)
+        if let name = name {
+            try verifyIdentifier(name, in: self)
+        }
         /// Check for terminator
         guard hasTerminator else {
             throw VerificationError<BasicBlock>.missingTerminator(self)
@@ -359,10 +378,12 @@ extension BasicBlock : Verifiable {
         var names: Set<String> = []
         /// Check arguments
         for arg in arguments {
-            guard !names.contains(arg.name) else {
-                throw VerificationError.redeclared(arg)
+            if let name = arg.name {
+                guard !names.contains(name) else {
+                    throw VerificationError.redeclared(arg)
+                }
+                names.insert(name)
             }
-            names.insert(name)
             try arg.performVerification()
         }
         /// Check instructions
@@ -384,7 +405,9 @@ extension BasicBlock : Verifiable {
 
 extension Argument : Verifiable {
     public func performVerification() throws {
-        try verifyIdentifier(name, in: self)
+        if let name = name {
+            try verifyIdentifier(name, in: self)
+        }
     }
 }
 
@@ -975,6 +998,17 @@ extension Use : Verifiable {
             guard lhs == rhs else {
                 throw VerificationError.useTypeMismatch(self)
             }
+        }
+    }
+}
+
+extension Definition : Verifiable {
+    public func performVerification() throws {
+        switch self {
+        case .argument(let x): try x.performVerification()
+        case .instruction(let x): try x.performVerification()
+        case .variable(let x): try x.performVerification()
+        case .function(let x): try x.performVerification()
         }
     }
 }

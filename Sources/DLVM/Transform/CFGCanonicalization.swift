@@ -74,10 +74,10 @@ open class CFGCanonicalization : TransformPass {
         in function: Function, using builder: IRBuilder,
         controlFlow cfg: inout ControlFlowGraphAnalysis.Result
     ) {
-        let newExitArg = (function.makeFreshName("exit_value"), function.returnType)
-        let newExit = BasicBlock(name: function.makeFreshBasicBlockName("exit"),
-                                 arguments: [newExitArg],
-                                 parent: function)
+        let newExit = BasicBlock(
+            name: function.makeFreshBasicBlockName("exit"),
+            arguments: [(function.makeFreshName("exit_value"), function.returnType)],
+            parent: function)
         for (exit, returnInst) in function.premise.exits {
             guard case let .return(use) = returnInst.kind else {
                 fatalError("Invalid exit return instruction")
@@ -107,8 +107,8 @@ open class CFGCanonicalization : TransformPass {
             /// create a join block.
             if predDom != bbDom { continue }
             let joinBlock = BasicBlock(
-                name: function.makeFreshBasicBlockName("\(bb.name)_join"),
-                arguments: predDom.arguments.map{(bb.makeFreshName($0.name), $0.type)},
+                name: bb.name.map { function.makeFreshBasicBlockName("\($0)_join") },
+                arguments: predDom.arguments.map { (nil, $0.type)} ,
                 parent: function)
             function.insert(joinBlock, before: predDom)
             builder.move(to: joinBlock)
@@ -159,7 +159,8 @@ open class CFGCanonicalization : TransformPass {
             .lazy.filter { !loop.contains($0) }
         /// Create preheader and hoist predecessors to it.
         let preheader = loop.header.hoistPredecessorsToNewBlock(
-            named: "\(loop.header.name)_preheader", hoisting: preds,
+            named: loop.header.name.map { "\($0)_preheader" },
+            hoisting: preds,
             before: loop.header, controlFlow: &cfg)
         /// Add preheader to parent loops (if they exist).
         if let parent = loop.parent {

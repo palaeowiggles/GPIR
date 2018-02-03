@@ -26,6 +26,10 @@ public enum Padding : Equatable {
     case full
 }
 
+protocol NominalType : HashableByReference {
+    var name: String { get }
+}
+
 /// Element key to form a key path in GEP and use
 public enum ElementKey : Equatable {
     case index(Int)
@@ -34,7 +38,7 @@ public enum ElementKey : Equatable {
 }
 
 /// Struct type
-public class StructType : Named, HashableByReference {
+public class StructType : NominalType {
     public typealias Field = (name: String, type: Type)
     public var name: String
     public var fields: [Field]
@@ -79,7 +83,7 @@ public extension StructType {
 }
 
 /// Enum type
-public class EnumType : Named, HashableByReference {
+public class EnumType : NominalType {
     public typealias Case = (name: String, associatedTypes: [Type])
     public var name: String
     public var cases: [Case]
@@ -113,7 +117,7 @@ public extension EnumType {
 }
 
 /// Type alias
-public class TypeAlias : Named, HashableByReference {
+public class TypeAlias : NominalType {
     public var name: String
     public var type: Type?
 

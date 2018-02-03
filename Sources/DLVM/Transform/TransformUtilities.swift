@@ -17,11 +17,13 @@
 //  limitations under the License.
 //
 
+// FIXME(dan-zheng): Nuke definedNames.
+
 // MARK: - Fresh name generators
 fileprivate extension BasicBlock {
     var definedNames: Set<String> {
-        return Set([name])
-            .union(arguments.map { $0.name })
+        return Set(name.flatMap { [$0] } ?? [])
+            .union(arguments.compactMap { $0.name })
             .union(elements.compactMap { $0.name })
     }
 }
@@ -80,7 +82,8 @@ internal extension BasicBlock {
 internal extension Argument {
     func incomingValue(from bb: BasicBlock) -> Use {
         guard let index = parent.arguments.index(of: self) else {
-            fatalError("\(self) is not an argument of its parent '\(bb.name)")
+            DLImpossible(
+                "\(self) is not an argument of its parent '\(bb.printedName).")
         }
         let terminator = bb.premise.terminator
         switch terminator.kind {
@@ -94,8 +97,8 @@ internal extension Argument {
             return enumCase
         default:
             preconditionFailure("""
-                Basic block '\(bb.name) does not branch to argument parent \
-                '\(parent.name)
+                Basic block '\(bb.printedName) does not branch to argument \
+                parent '\(parent.printedName).
                 """)
         }
     }
@@ -120,7 +123,8 @@ internal extension Function {
         /// Other function must be empty (has no basic blocks)
         guard other.isEmpty else {
             fatalError("""
-                Could not copy contents to @\(other.name) because it is not empty
+                Could not copy contents to @\(other.printedName) because it is \
+                not empty.
                 """)
         }
 
@@ -195,17 +199,15 @@ internal extension BasicBlock {
     /// accordingly.
     @discardableResult
     func hoistPredecessorsToNewBlock<C : Collection>(
-        named name: String,
+        named name: String?,
         hoisting predecessors: C,
         at index: Int? = nil,
         controlFlow cfg: inout DirectedGraph<BasicBlock>) -> BasicBlock
         where C.Element == BasicBlock
     {
         let newBB = BasicBlock(
-            name: makeFreshName(name),
-            arguments: arguments.map {
-                (makeFreshName($0.name), $0.type)
-            },
+            name: name.map(makeFreshName),
+            arguments: arguments.map { (nil, $0.type) },
             parent: parent)
         if let index = index {
             parent.insert(newBB, at: index)
@@ -226,7 +228,7 @@ internal extension BasicBlock {
 
     @discardableResult
     func hoistPredecessorsToNewBlock<C : Collection>(
-        named name: String,
+        named name: String?,
         hoisting predecessors: C,
         before other: BasicBlock,
         controlFlow cfg: inout DirectedGraph<BasicBlock>) -> BasicBlock
@@ -234,7 +236,8 @@ internal extension BasicBlock {
     {
         guard let index = parent.index(of: other) else {
             preconditionFailure("""
-                Function @\(parent.name) does not contain basic block '\(other.name)
+                Function @\(parent.printedName) does not contain basic block \
+                '\(other.printedName).
                 """)
         }
         return hoistPredecessorsToNewBlock(named: name, hoisting: predecessors,
@@ -243,7 +246,7 @@ internal extension BasicBlock {
 
     @discardableResult
     func hoistPredecessorsToNewBlock<C : Collection>(
-        named name: String,
+        named name: String?,
         hoisting predecessors: C,
         after other: BasicBlock,
         controlFlow cfg: inout DirectedGraph<BasicBlock>) -> BasicBlock
@@ -251,7 +254,7 @@ internal extension BasicBlock {
     {
         guard let prevIndex = parent.index(of: other) else {
             preconditionFailure("""
-                Function @\(parent) does not contain basic block '\(other)
+                Function @\(parent) does not contain basic block '\(other).
                 """)
         }
         return hoistPredecessorsToNewBlock(named: name, hoisting: predecessors,

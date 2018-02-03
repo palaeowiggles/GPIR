@@ -17,12 +17,12 @@
 //  limitations under the License.
 //
 
-public class Argument : Value, Named, HashableByReference {
-    public var name: String
+public class Argument : NamedValue, HashableByReference {
+    public var name: String?
     public var type: Type
     public unowned var parent: BasicBlock
 
-    public init(name: String, type: Type, parent: BasicBlock) {
+    public init(name: String?, type: Type, parent: BasicBlock) {
         self.name = name
         self.type = type
         self.parent = parent
@@ -33,18 +33,18 @@ public class Argument : Value, Named, HashableByReference {
     }
 }
 
-public final class BasicBlock : IRCollection, IRUnit, Named {
+public final class BasicBlock : IRCollection, IRUnit {
     public typealias Base = OrderedSet<Instruction>
     public typealias Element = Instruction
 
     /// Name of the basic block
-    open var name: String
+    open var name: String?
     open var arguments: OrderedSet<Argument> = []
     open var elements: OrderedSet<Instruction> = []
     open var parent: Function
     public internal(set) var passManager: PassManager<BasicBlock> = PassManager()
 
-    internal init<C: Collection>(name: String, arguments: C, parent: Function)
+    internal init<C: Collection>(name: String?, arguments: C, parent: Function)
         where C.Element == Argument
     {
         self.name = name
@@ -56,8 +56,8 @@ public final class BasicBlock : IRCollection, IRUnit, Named {
         }
     }
 
-    public convenience init<C: Collection>(name: String, arguments: C, parent: Function)
-        where C.Element == (String, Type)
+    public convenience init<C: Collection>(name: String?, arguments: C, parent: Function)
+        where C.Element == (String?, Type)
     {
         self.init(name: name, arguments: [] as [Argument], parent: parent)
         for (name, type) in arguments {
@@ -141,5 +141,23 @@ public extension BasicBlock {
         where C.Element == Type
     {
         return types.elementsEqual(arguments.map{$0.type})
+    }
+}
+
+// MARK: - Naming
+
+public extension Argument {
+    public var printedName: String {
+        if let name = name {
+            return name
+        }
+        let selfIndex = parent.arguments.index(of: self) ?? DLImpossibleResult()
+        return "\(parent.indexInParent)^\(selfIndex)"
+    }
+}
+
+public extension BasicBlock {
+    public var printedName: String {
+        return name ?? indexInParent.description
     }
 }

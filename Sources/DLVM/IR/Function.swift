@@ -45,7 +45,7 @@ public struct AdjointConfiguration : Equatable {
     }
 }
 
-public final class Function : Named, IRCollection, IRUnit {
+public final class Function : IRCollection, IRUnit, NamedValue {
     public enum Attribute {
         /// Inline the function during LLGen
         case inline
@@ -62,7 +62,7 @@ public final class Function : Named, IRCollection, IRUnit {
     public typealias Base = OrderedSet<BasicBlock>
     public typealias Element = BasicBlock
 
-    public var name: String
+    public var name: String?
     public var argumentTypes: [Type]
     public var returnType: Type
     public var attributes: Set<Attribute> = []
@@ -72,7 +72,7 @@ public final class Function : Named, IRCollection, IRUnit {
     public var elements: OrderedSet<BasicBlock> = []
     public internal(set) var passManager: PassManager<Function> = PassManager()
 
-    public init(name: String, argumentTypes: [Type],
+    public init(name: String?, argumentTypes: [Type],
                 returnType: Type, attributes: Set<Attribute> = [],
                 declarationKind: DeclarationKind? = nil, parent: Module) {
         self.name = name
@@ -238,5 +238,13 @@ public extension Function {
             isSeedable ? argumentTypes + [sourceType] : argumentTypes,
             .tuple(diffVars + keptOutputs)
         )
+    }
+}
+
+public extension Function {
+    var printedName: String {
+        if let name = name { return name }
+        let selfIndex = parent.variables.count + indexInParent
+        return selfIndex.description
     }
 }

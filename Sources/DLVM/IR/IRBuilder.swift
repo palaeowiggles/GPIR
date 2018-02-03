@@ -87,16 +87,16 @@ extension IRBuilder {
     }
 
     @discardableResult
-    open func buildGlobalValue(named name: String,
-                               valueType: Type) -> Variable {
-        let value = Variable(name: name, valueType: valueType)
+    open func buildVariable(named name: String?,
+                            valueType: Type) -> Variable {
+        let value = Variable(name: name, valueType: valueType, parent: module)
         module.variables.append(value)
         return value
     }
 
     @discardableResult
     open func buildFunction(
-        named name: String,
+        named name: String?,
         argumentTypes: [Type],
         returnType: Type = .void,
         attributes: Set<Function.Attribute> = [],
@@ -112,8 +112,8 @@ extension IRBuilder {
     }
 
     @discardableResult
-    open func buildBasicBlock(named name: String,
-                              arguments: DictionaryLiteral<String, Type>,
+    open func buildBasicBlock(named name: String?,
+                              arguments: DictionaryLiteral<String?, Type>,
                               in function: Function) -> BasicBlock {
         let block = BasicBlock(name: name,
                                arguments: arguments.map{($0.0, $0.1)},
@@ -123,7 +123,7 @@ extension IRBuilder {
     }
 
     @discardableResult
-    open func buildEntry(argumentNames: [String],
+    open func buildEntry(argumentNames: [String?],
                          in function: Function) -> BasicBlock {
         let entry = BasicBlock(
             name: "entry",

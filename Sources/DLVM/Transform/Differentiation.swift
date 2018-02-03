@@ -148,9 +148,7 @@ fileprivate extension Differentiation {
                 /// Create preheader and connect it with header
                 let preheader = BasicBlock(
                     name: adjoint.makeFreshName("preheader"),
-                    arguments: loop.header.arguments.map{
-                        (adjoint.makeFreshName($0.name), $0.type)
-                    },
+                    arguments: loop.header.arguments.map { (nil, $0.type) },
                     parent: adjoint)
                 adjoint.insert(preheader, before: loop.header)
                 builder.move(to: preheader)
@@ -231,7 +229,7 @@ fileprivate extension Differentiation {
                 guard let argAdjoint = context.adjoint(for: %adjoint[0].arguments[i]) else {
                     fatalError("""
                         Adjoint not found for argument \(adjoint[0].arguments[i]) \
-                        in function \(adjoint.name)
+                        in function \(adjoint.printedName)
                         """)
                 }
                 return argAdjoint
@@ -276,10 +274,10 @@ fileprivate extension Differentiation {
                                                        keeping: [],
                                                        seedable: true),
                     case let .function(argumentTypes, returnType) = adjointType else {
-                        fatalError("Function @\(fn.name) is not differentiable")
+                    DLImpossible("Function @\(fn.printedName) is not differentiable")
                 }
                 let module = fn.parent
-                let adjointName = module.makeFreshFunctionName("\(fn.name)_grad")
+                let adjointName = fn.name.map { module.makeFreshFunctionName("\($0)_grad") }
                 adjoint = Function(name: adjointName,
                                    argumentTypes: argumentTypes,
                                    returnType: returnType,
