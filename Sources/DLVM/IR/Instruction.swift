@@ -22,7 +22,7 @@ import CoreTensor
 // MARK: - Core Instruction Set
 public enum InstructionKind {
     /** Builtin intrinsic **/
-    case builtin(IntrinsicProtocol, [Use])
+    case builtin(Intrinsic.Type, [Use])
 
     /** Control flow **/
     /// Unconditional branch to a basic block
@@ -326,6 +326,9 @@ public extension InstructionKind {
             case .numeric(_) where t1.isNumeric:
                 dtype = t1
                 resultType = .tensor(s1.droppingDimensions(dimSet), t1)
+            case .numericBuiltin(_) where t1.isNumeric:
+                dtype = t1
+                resultType = .tensor(s1.droppingDimensions(dimSet), t1)
             case let .function(f)
                 where f.type.unaliased == .function([.tensor([], t1)], .tensor([], t1)):
                 dtype = t1
@@ -482,6 +485,9 @@ public extension InstructionKind {
                 resultType = .tensor(outputShape, .bool)
                 break
             case let (.numeric(_), .tensor(_, t1)) where t1.isNumeric:
+                resultType = .tensor(outputShape, t1)
+                break
+            case let (.numericBuiltin(_), .tensor(_, t1)) where t1.isNumeric:
                 resultType = .tensor(outputShape, t1)
                 break
             case let (.function(f), .tensor(_, t1))
@@ -668,7 +674,7 @@ extension InstructionKind : Equatable {
     public static func == (lhs: InstructionKind, rhs: InstructionKind) -> Bool {
         switch (lhs, rhs) {
         case let (.builtin(op1, args1), .builtin(op2, args2)):
-            return op1.isEqualTo(op2) && args1 == args2
+            return op1.self == op2.self && args1 == args2
         case let (.literal(x1, t1), .literal(x2, t2)):
             return x1 == x2 && t1 == t2
         case let (.numericUnary(op1, x1), .numericUnary(op2, y1)):
@@ -1007,7 +1013,9 @@ public extension InstructionKind {
 // MARK: - Opcode decomposition
 
 public enum Opcode : Equatable {
+    case builtin
     case branch
+    case branchEnum
     case conditional
     case `return`
     case literal
@@ -1027,7 +1035,6 @@ public enum Opcode : Equatable {
     case bitCast
     case extract
     case insert
-    case branchEnum
     case apply
     case allocateStack
     case allocateHeap
@@ -1054,13 +1061,15 @@ public enum Opcode : Equatable {
     case select
 }
 
-/// Instruction ADT decomposition (opcodes, keywords, operands)
+/// Instruction ADT decomposition (opcodes, keywords, operands).
 /// - Note: When adding a new instruction, you should insert its
-/// corresponding opcode here
+/// corresponding opcode here.
 public extension InstructionKind {
     var opcode: Opcode {
         switch self {
+        case .builtin: return .builtin
         case .branch: return .branch
+        case .branchEnum: return .branchEnum
         case .conditional: return .conditional
         case .return: return .return
         case .literal: return .literal
@@ -1085,7 +1094,6 @@ public extension InstructionKind {
         case .bitCast: return .bitCast
         case .extract: return .extract
         case .insert: return .insert
-        case .branchEnum: return .branchEnum
         case .apply: return .apply
         case .allocateStack: return .allocateStack
         case .allocateHeap: return .allocateHeap

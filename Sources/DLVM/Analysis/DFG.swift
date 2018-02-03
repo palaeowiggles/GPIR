@@ -49,7 +49,7 @@ public extension DataFlowGraph {
 
     /// Predecessors
     func predecessors(of inst: Instruction) -> [Definition] {
-        return inst.operands.flatMap {$0.definition}
+        return inst.operands.compactMap {$0.definition}
     }
 }
 

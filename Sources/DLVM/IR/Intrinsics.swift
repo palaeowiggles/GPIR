@@ -17,50 +17,107 @@
 //  limitations under the License.
 //
 
-/// [WIP] An intrinsic function
-/// TODO:
-/// - Handle parsing/opcodes
-/// - Fix printing for builtin instruction kind
-/// - Add more intrinsics (mean, softmax, etc)
-public protocol IntrinsicProtocol : TextOutputStreamable {
-    var opcode: String { get }
-    func resultType(for operands: [Use]) -> Type
-    func isEqualTo(_ other: IntrinsicProtocol) -> Bool
-}
+public final class IntrinsicRegistry {
+    public static let global = IntrinsicRegistry(intrinsics: [
+        MeanIntrinsic.self, SoftmaxIntrinsic.self,
+        MinIntrinsic.self, MaxIntrinsic.self
+    ])
 
-extension IntrinsicProtocol {
-    public func write<Target : TextOutputStream>(to target: inout Target) {
-        target.write(opcode)
+    var registry: [String : Intrinsic.Type] = [:]
+
+    public func register(_ intrinsic: Intrinsic.Type) {
+        guard !registry.keys.contains(intrinsic.opcode) else {
+            fatalError("Multiple intrinsics with opcode \(intrinsic.opcode)")
+        }
+        registry[intrinsic.opcode] = intrinsic
     }
-}
 
-/// Dummy
-public protocol BinaryIntrinsic : IntrinsicProtocol {}
+    public func intrinsic(named opcode: String) -> Intrinsic.Type? {
+        return registry[opcode]
+    }
 
-public enum NumericBinaryIntrinsic : Equatable {
-    case max, min
-}
+    init() {}
 
-extension NumericBinaryIntrinsic : BinaryIntrinsic {
-    public var opcode: String {
-        switch self {
-        case .max: return "max"
-        case .min: return "min"
+    init(intrinsics: [Intrinsic.Type]) {
+        for intrinsic in intrinsics {
+            register(intrinsic)
         }
     }
+}
 
-    public func resultType(for operands: [Use]) -> Type {
+/// An intrinsic function
+/// TODO:
+/// - Add a way to register adjoint
+/// - Add "ReductionIntrinsic"
+public class Intrinsic {
+    public class var opcode: String {
+        fatalError("Must be implemented by subclasses.")
+    }
+    public class func resultType(for operands: [Use]) -> Type {
+        fatalError("Must be implemented by subclasses.")
+    }
+}
+
+extension Intrinsic {
+    public static var description: String {
+        return "builtin \"\(self.opcode)\""
+    }
+}
+
+extension Intrinsic : Equatable {
+    public static func == (lhs: Intrinsic, rhs: Intrinsic) -> Bool {
+        return type(of: lhs) == type(of: rhs)
+    }
+}
+
+public class UnaryIntrinsic : Intrinsic {}
+public class BinaryIntrinsic : Intrinsic {}
+
+public class NumericUnaryIntrinsic : UnaryIntrinsic {
+    public override class func resultType(for operands: [Use]) -> Type {
+        guard let first = operands.first, case let .tensor(s, dt) = first.type,
+            dt.isNumeric else {
+            return .invalid
+        }
+        return .tensor(s, dt)
+    }
+}
+
+public class FloatingPointUnaryIntrinsic : NumericUnaryIntrinsic {
+    public override class func resultType(for operands: [Use]) -> Type {
+        guard let first = operands.first, case let .tensor(s, dt) = first.type,
+            case .float = dt else {
+            return .invalid
+        }
+        return .tensor(s, dt)
+    }
+}
+
+public class NumericBinaryIntrinsic : BinaryIntrinsic {
+    public override class func resultType(for operands: [Use]) -> Type {
         guard operands.count == 2,
             case let .tensor(s1, dt1) = operands[0].type,
             case let .tensor(s2, dt2) = operands[1].type,
             let bcShape = s1.broadcast(with: s2), dt1 == dt2, dt1.isNumeric else {
-                return .invalid
+            return .invalid
         }
         return .tensor(bcShape, dt1)
     }
+}
 
-    public func isEqualTo(_ other: IntrinsicProtocol) -> Bool {
-        guard let op = (other as? NumericBinaryIntrinsic) else { return false }
-        return self == op
-    }
+public class MeanIntrinsic : Intrinsic {
+    /// WIP: `mean` is a reduction op and should accept reduction axes as an argument.
+    public override class var opcode: String { return "mean" }
+}
+
+public class SoftmaxIntrinsic : FloatingPointUnaryIntrinsic {
+    public override class var opcode: String { return "softmax" }
+}
+
+public class MinIntrinsic : NumericBinaryIntrinsic {
+    public override class var opcode: String { return "min" }
+}
+
+public class MaxIntrinsic : NumericBinaryIntrinsic {
+    public override class var opcode: String { return "max" }
 }

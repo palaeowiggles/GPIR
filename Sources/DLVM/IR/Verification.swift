@@ -51,6 +51,7 @@ public enum VerificationError<Node : Verifiable> : Error {
     case invalidAdjointArguments(Use, Node)
     case invalidIndex(Use, Int, Node)
     case invalidIndices(Use, [ElementKey], Node)
+    case invalidIntrinsic(Intrinsic.Type, Node)
     case invalidLiteral(Type, Literal, Node)
     case invalidOffsets(Use, [ElementKey], Node)
     case invalidReductionDimensions([Int], Use, Node)
@@ -415,6 +416,14 @@ extension InstructionKind {
     /// Verifies instruction
     public func performVerification(in instruction: Instruction) throws {
         switch self {
+        case let .builtin(op, args):
+            guard IntrinsicRegistry.global.intrinsic(named: op.opcode) == op else {
+                throw VerificationError.invalidIntrinsic(op, instruction)
+            }
+            guard op.resultType(for: args) != .invalid else {
+                throw VerificationError.invalidType(instruction)
+            }
+
         case let .conditional(use, thenBB, thenArgs, elseBB, elseArgs):
             guard case .bool = use.type.unaliased else {
                 throw VerificationError.unexpectedType(use, .bool, instruction)

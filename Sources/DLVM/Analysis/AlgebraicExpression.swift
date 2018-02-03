@@ -143,7 +143,7 @@ public extension AlgebraicExpression {
 
     var instructions: AnySequence<Instruction> {
         return AnySequence(
-            transposeTraversed(in: .breadthFirst).lazy.flatMap { expr in
+            transposeTraversed(in: .breadthFirst).lazy.compactMap { expr in
                 expr.topInstruction
             })
     }

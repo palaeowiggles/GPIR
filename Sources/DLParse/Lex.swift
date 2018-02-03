@@ -26,7 +26,7 @@ import class DLVM.Function
 
 public enum Keyword {
     case module
-    case stage, raw, optimizable, compute, scheduled, canonical
+    case stage, raw, optimizable
     case `struct`, `enum`, `case`, `func`, `var`, stack
     case type, opaque
     case at, to, from, by, upto
@@ -346,6 +346,7 @@ private extension Lexer {
                 switch current {
                 /// Escape character
                 case "\\":
+                    count += 1
                     advance(by: 1)
                     guard let escaped = characters.first else {
                         throw LexicalError.unclosedStringLiteral(startLoc..<location)
@@ -365,6 +366,7 @@ private extension Lexer {
                 default:
                     chars.append(current)
                 }
+                count += 1
                 advance(by: 1)
             }
             /// Check for end
@@ -446,9 +448,6 @@ private extension Lexer {
         case "stage": kind = .keyword(.stage)
         case "raw": kind = .keyword(.raw)
         case "optimizable": kind = .keyword(.optimizable)
-        case "compute": kind = .keyword(.compute)
-        case "scheduled": kind = .keyword(.scheduled)
-        case "canonical": kind = .keyword(.canonical)
         case "func": kind = .keyword(.func)
         case "struct": kind = .keyword(.struct)
         case "enum": kind = .keyword(.enum)
@@ -489,6 +488,7 @@ private extension Lexer {
         case "along": kind = .keyword(.along)
         case "dims": kind = .keyword(.dims)
         /// Opcode
+        case "builtin": kind = .opcode(.builtin)
         case "literal": kind = .opcode(.literal)
         case "branch": kind = .opcode(.branch)
         case "conditional": kind = .opcode(.conditional)
