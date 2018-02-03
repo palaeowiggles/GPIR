@@ -20,7 +20,7 @@
 /// Module representing a neural network
 public final class Module : IRCollection {
     public enum Stage {
-        case raw, optimizable, compute, scheduled, canonical
+        case raw, optimizable
     }
 
     public typealias Base = OrderedSet<Function>

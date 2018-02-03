@@ -18,11 +18,11 @@
 //
 
 import CoreTensor
-import CoreOp
 
 public enum VerificationError<Node : Verifiable> : Error {
     case axisOutOfBounds(Int, Use, Node)
     case basicBlockArgumentMismatch([Use], BasicBlock, Node)
+    case basicBlockParentMismatch(Function, Node)
     case blockFunctionMismatch(BasicBlock, Node)
     case convolveInputChannelMismatch(Use, Use, Int, Node)
     case convolveInvalidShape(Use, Node)
@@ -45,6 +45,8 @@ public enum VerificationError<Node : Verifiable> : Error {
     case adjointArgumentMismatch(Function, Int?, [Int]?, Node)
     case adjointTypeMismatch(Function.DeclarationKind, Type, Node)
     case illegalName(String, Node)
+    case instructionParentMismatch(BasicBlock, Node)
+    case instructionFunctionMismatch(Function, Node)
     case invalidAllocationSize(Node)
     case invalidCopyOperands(Use, Use, Node)
     case invalidEnumCase(EnumType, String, Node)
@@ -94,6 +96,7 @@ public enum VerificationError<Node : Verifiable> : Error {
     case unexpectedShape(Use, TensorShape, Node)
     case unexpectedType(Use, Type, Node)
     case useBeforeDef(user: Instruction, usee: Value, Node)
+    case useInvalidParent(user: Instruction, usee: Value, Node)
     case useShapeMismatch(Node)
     case useTypeMismatch(Node)
     case windowDimensionsMismatch([Int], Use, Node)
@@ -310,12 +313,16 @@ extension Function : Verifiable {
                 throw VerificationError.redeclared(bb)
             }
             /// Check entry block arguments
-            guard !bb.isEntry || bb.arguments.map({$0.type}).elementsEqual(argumentTypes) else {
+            guard !bb.isEntry || bb.arguments.map({ $0.type }).elementsEqual(argumentTypes) else {
                 throw VerificationError.functionEntryArgumentMismatch(bb, self)
             }
             bbNames.insert(bb.name)
             /// Verify bb
             try bb.performVerification()
+            /// Verify that bb parent is self
+            guard bb.parent == self else {
+                throw VerificationError.basicBlockParentMismatch(self, bb)
+            }
             /// Check return type
             let bbPremise = try bb.verifyPremise()
             if case let .return(retVal) = bbPremise.terminator.kind {
@@ -367,6 +374,10 @@ extension BasicBlock : Verifiable {
                 names.insert(name)
             }
             try inst.performVerification()
+            /// Check for instruction parent/function mismatch
+            guard inst.parent == self else {
+                throw VerificationError.instructionParentMismatch(self, inst)
+            }
         }
     }
 }
@@ -385,6 +396,14 @@ extension Instruction : Verifiable {
         /// Use type must match usee type
         for use in operands {
             try use.performVerification()
+            /// Uses must come from same function
+            switch use {
+            case let .argument(_, arg) where arg.parent.parent != parent.parent:
+                throw VerificationError.useInvalidParent(user: self, usee: arg, self.parent.parent)
+            case let .instruction(_, inst) where inst.parent.parent != parent.parent:
+                throw VerificationError.useInvalidParent(user: self, usee: inst, self.parent.parent)
+            default: break
+            }
             /// Special case: nested literals can only be in a `literal`
             /// instruction
             if opcode != .literal, case .literal(let ty, let lit) = use {
@@ -727,6 +746,21 @@ extension InstructionKind {
             }
             guard rd.forAll({ $0 > 0 }) else {
                 throw VerificationError.convolveInvalidDilation(rd, instruction)
+            }
+
+        case let .rank(of: v1):
+            guard case .tensor = v1.type.unaliased else {
+                throw VerificationError.notTensor(v1, instruction)
+            }
+
+        case let .shape(of: v1):
+            guard case .tensor = v1.type.unaliased else {
+                throw VerificationError.notTensor(v1, instruction)
+            }
+
+        case let .unitCount(of: v1):
+            guard case .tensor = v1.type.unaliased else {
+                throw VerificationError.notTensor(v1, instruction)
             }
 
         case let .padShape(v1, at: index):

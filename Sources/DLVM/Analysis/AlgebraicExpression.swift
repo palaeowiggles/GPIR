@@ -22,8 +22,6 @@
 /// Algebra Simplification, Linear Algebra Fusion and Matrix Multiplication
 /// Reordering.
 
-import CoreOp
-
 public indirect enum AlgebraicExpression {
     case atom(Use)
     case map(NumericUnaryOp, AlgebraicExpression, Instruction)
@@ -73,7 +71,7 @@ public extension AlgebraicExpression {
 
     /// Remove intermediate instructions from the basic block
     func removeIntermediates(upTo barriers: AlgebraicExpression...) {
-        let barriers = Set(barriers.lazy.flatMap { $0.topInstruction })
+        let barriers = Set(barriers.lazy.compactMap { $0.topInstruction })
         func remove(_ expr: AlgebraicExpression) {
             if let inst = expr.topInstruction, barriers.contains(inst) {
                 return
@@ -145,7 +143,7 @@ public extension AlgebraicExpression {
 
     var instructions: AnySequence<Instruction> {
         return AnySequence(
-            transposeTraversed(in: .breadthFirst).lazy.flatMap { expr in
+            transposeTraversed(in: .breadthFirst).lazy.compactMap { expr in
                 expr.topInstruction
             })
     }

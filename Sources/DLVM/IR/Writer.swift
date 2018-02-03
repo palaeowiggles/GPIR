@@ -18,7 +18,6 @@
 //
 
 import CoreTensor
-import CoreOp
 
 extension LiteralValue : TextOutputStreamable {
     public func write<Target : TextOutputStream>(to target: inout Target) {
@@ -221,6 +220,12 @@ extension InstructionKind : TextOutputStreamable {
             }
         case let .dataTypeCast(op, t):
             target.write("dataTypeCast \(op) to \(t)")
+        case let .rank(v):
+            target.write("rank of \(v)")
+        case let .shape(v):
+            target.write("shape of \(v)")
+        case let .unitCount(v):
+            target.write("unitCount of \(v)")
         case let .padShape(op, at: index):
             target.write("padShape \(op) at \(index)")
         case let .squeezeShape(op, at: index):

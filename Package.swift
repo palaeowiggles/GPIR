@@ -37,11 +37,10 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-package-manager",
                  .branch("swift-4.1-branch")),
-        .package(url: "https://github.com/dlvm-team/CoreTensor", from: "0.7.1")
+        .package(url: "https://github.com/dlvm-team/CoreTensor", from: "0.7.2")
     ],
     targets: [
-        .target(name: "CoreOp", dependencies: ["CoreTensor"]),
-        .target(name: "DLVM", dependencies: ["CoreTensor", "CoreOp"]),
+        .target(name: "DLVM", dependencies: ["CoreTensor"]),
         .target(name: "DLParse", dependencies: ["DLVM"]),
         .target(name: "DLCommandLineTools", dependencies: [
             "Utility", "DLVM", "DLParse"
@@ -54,5 +53,5 @@ let package = Package(
             "DLVM", "DLParse"
         ]),
     ],
-    swiftLanguageVersions: [ 4 ]
+    swiftLanguageVersions: [4]
 )

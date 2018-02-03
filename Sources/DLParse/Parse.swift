@@ -772,6 +772,24 @@ extension Parser {
             return .convolve(val, kernel: kernel, strides: strides, padding: padding,
                              leftDilation: ld, rightDilation: rd, groups: groups)
 
+        /// 'rank' 'of' <val>
+        case .rank:
+            try consume(.keyword(.of))
+            let (val, _) = try parseUse(in: basicBlock)
+            return .rank(of: val)
+
+        /// 'shape' 'of' <val>
+        case .shape:
+            try consume(.keyword(.of))
+            let (val, _) = try parseUse(in: basicBlock)
+            return .shape(of: val)
+
+        /// 'unitCount' 'of' <val>
+        case .unitCount:
+            try consume(.keyword(.of))
+            let (val, _) = try parseUse(in: basicBlock)
+            return .unitCount(of: val)
+
         /// 'padShape' <val> 'at' <num>
         case .padShape:
             let (val, _) = try parseUse(in: basicBlock)
@@ -791,14 +809,14 @@ extension Parser {
             let (val, _) = try parseUse(in: basicBlock)
             try consume(.keyword(.to))
             let shape = try parseShape()
-            return .shapeCast(val, shape)
+            return .shapeCast(val, to: shape)
 
         /// 'bitCast' <val> 'to' <type>
         case .bitCast:
             let (val, _) = try parseUse(in: basicBlock)
             try consume(.keyword(.to))
             let (type, _) = try parseType()
-            return .bitCast(val, type)
+            return .bitCast(val, to: type)
 
         /// 'extract' <num|key|val> (',' <num|key|val>)* 'from' <val>
         case .extract:
@@ -1337,14 +1355,14 @@ public extension Parser {
         /// Stage
         try consumeOneOrMore(.newLine)
         try consume(.keyword(.stage))
-        let stage: Module.Stage = try withPeekedToken("'raw' or 'canonical'", { tok in
+        let stage: Module.Stage = try withPeekedToken("'raw' or 'optimizable'", { tok in
             switch tok.kind {
             case .keyword(.raw):
                 consumeToken()
                 return .raw
-            case .keyword(.canonical):
+            case .keyword(.optimizable):
                 consumeToken()
-                return .canonical
+                return .optimizable
             default: return nil
             }
         })

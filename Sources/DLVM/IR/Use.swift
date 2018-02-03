@@ -17,8 +17,6 @@
 //  limitations under the License.
 //
 
-import CoreOp
-
 public indirect enum Use : Equatable {
     case literal(Type, Literal)
     case definition(Definition)
@@ -74,6 +72,12 @@ public extension Use {
     var variable: Variable? {
         guard case let .definition(.variable(variable)) = self else { return nil }
         return variable
+      
+    var literal: Literal? {
+        guard case let .literal(_, lit) = self else {
+            return nil
+        }
+        return lit
     }
 }
 

@@ -18,7 +18,6 @@
 //
 
 import CoreTensor
-import CoreOp
 
 // MARK: - Core Instruction Set
 public enum InstructionKind {
@@ -89,15 +88,23 @@ public enum InstructionKind {
         groups: Int? // Group count for grouped/depthwise convolutions, default value 1
     )
 
+    /** Tensor information getters **/
+    /// Tensor rank getter
+    case rank(of: Use)
+    /// Tensor shape getter
+    case shape(of: Use)
+    /// Tensor unit count getter
+    case unitCount(of: Use)
+
     /** Cost-free casts **/
     /// Pad shape with dimension of 1
     case padShape(Use, at: Int)
     /// Drop dimension of 1 from shape
     case squeezeShape(Use, at: Int)
     /// Shape cast operation
-    case shapeCast(Use, TensorShape)
+    case shapeCast(Use, to: TensorShape)
     /// Bitcast
-    case bitCast(Use, Type)
+    case bitCast(Use, to: Type)
 
     /** Aggregate operations **/
     /// Extract an element from tensor, tuple, or array
@@ -264,7 +271,7 @@ public extension InstructionKind {
         case let .numericUnary(_, v1):
             return v1.tensorType.flatMap { v1Ty in
                 NumericUnaryOp.resultType(for: (v1Ty))
-                }.map(Type.tensor) ?? .invalid
+            }.map(Type.tensor) ?? .invalid
 
         case let .numericBinary(_, v1, v2):
             return v1.tensorType.flatMap { v1Ty in
@@ -504,6 +511,24 @@ public extension InstructionKind {
             default: return .invalid
             }
 
+        case let .rank(of: v1):
+            guard case .tensor = v1.type.unaliased else {
+                return .invalid
+            }
+            return .int(64)
+
+        case let .shape(of: v1):
+            guard case let .tensor(s1, _) = v1.type.unaliased else {
+                return .invalid
+            }
+            return .tensor([s1.count], .int(64))
+
+        case let .unitCount(of: v1):
+            guard case .tensor = v1.type.unaliased else {
+                return .invalid
+            }
+            return .int(64)
+
         case let .padShape(v1, at: index):
             switch v1.type.unaliased {
             case let .tensor(s1, t1) where s1.indices.contains(index) || s1.endIndex == index:
@@ -711,6 +736,10 @@ extension InstructionKind : Equatable {
             }
         case let (.dataTypeCast(x1, dt1), .dataTypeCast(x2, dt2)):
             return x1 == x2 && dt1 == dt2
+        case let (.rank(of: x1), .rank(of: x2)),
+             let (.shape(of: x1), .shape(of: x2)),
+             let (.unitCount(of: x1), .rank(of: x2)):
+            return x1 == x2
         case let (.padShape(x1, at: i1), .padShape(x2, at: i2)):
             return x1 == x2 && i1 == i2
         case let (.squeezeShape(x1, at: i1), .squeezeShape(x2, at: i2)):
@@ -891,12 +920,18 @@ public extension InstructionKind {
             return .dot(use1, new)
         case .dot(old, old):
             return .dot(new, new)
+        case .rank(of: old):
+            return .rank(of: new)
+        case .shape(of: old):
+            return .shape(of: new)
+        case .unitCount(of: old):
+            return .unitCount(of: new)
         case .padShape(old, at: let i):
             return .padShape(new, at: i)
         case .squeezeShape(old, at: let i):
             return .squeezeShape(new, at: i)
         case .shapeCast(old, let shape):
-            return .shapeCast(new, shape)
+            return .shapeCast(new, to: shape)
         case .dataTypeCast(old, let type):
             return .dataTypeCast(new, type)
         case let .apply(fn, operands):
@@ -914,7 +949,7 @@ public extension InstructionKind {
             let newUse = use == old ? new : use
             return .branchEnum(newUse, branches)
         case .bitCast(old, let targetT):
-            return .bitCast(new, targetT)
+            return .bitCast(new, to: targetT)
         case .elementPointer(old, let indices):
             return .elementPointer(new, indices)
         case .store(old, to: let dest):
@@ -1011,6 +1046,9 @@ public enum Opcode : Equatable {
     case reverse
     case slice
     case convolve
+    case rank
+    case shape
+    case unitCount
     case padShape
     case squeezeShape
     case shapeCast
@@ -1069,6 +1107,9 @@ public extension InstructionKind {
         case .reverse: return .reverse
         case .slice: return .slice
         case .convolve: return .convolve
+        case .rank: return .rank
+        case .shape: return .shape
+        case .unitCount: return .unitCount
         case .padShape: return .padShape
         case .squeezeShape: return .squeezeShape
         case .shapeCast: return .shapeCast
