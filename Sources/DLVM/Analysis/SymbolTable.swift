@@ -24,11 +24,11 @@ open class SymbolTableAnalysis : AnalysisPass {
         var table: Result = [:]
         for bb in body {
             for argument in bb.arguments {
-                table[argument.name] = argument
+                table[argument.name] = .argument(argument)
             }
             for inst in bb {
                 guard let name = inst.name else { continue }
-                table[name] = inst
+                table[name] = .instruction(inst)
             }
         }
         return table

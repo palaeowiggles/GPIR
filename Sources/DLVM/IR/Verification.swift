@@ -398,9 +398,9 @@ extension Instruction : Verifiable {
             try use.performVerification()
             /// Uses must come from same function
             switch use {
-            case let .argument(_, arg) where arg.parent.parent != parent.parent:
+            case let .definition(.argument(arg)) where arg.parent.parent != parent.parent:
                 throw VerificationError.useInvalidParent(user: self, usee: arg, self.parent.parent)
-            case let .instruction(_, inst) where inst.parent.parent != parent.parent:
+            case let .definition(.instruction(inst)) where inst.parent.parent != parent.parent:
                 throw VerificationError.useInvalidParent(user: self, usee: inst, self.parent.parent)
             default: break
             }

@@ -72,6 +72,7 @@ public extension Use {
     var variable: Variable? {
         guard case let .definition(.variable(variable)) = self else { return nil }
         return variable
+    }
       
     var literal: Literal? {
         guard case let .literal(_, lit) = self else {

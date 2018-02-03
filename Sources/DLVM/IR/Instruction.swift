@@ -88,7 +88,7 @@ public enum InstructionKind {
         groups: Int? // Group count for grouped/depthwise convolutions, default value 1
     )
 
-    /** Tensor information getters **/
+    /** Tensor property getters **/
     /// Tensor rank getter
     case rank(of: Use)
     /// Tensor shape getter
@@ -633,7 +633,8 @@ extension InstructionKind {
         case let .not(op), let .numericUnary(_, op), let .scan(_, op, _),
              let .transpose(op), let .reverse(op, dims: _), let .slice(op, at: _),
              let .shapeCast(op, _), let .dataTypeCast(op, _), let .bitCast(op, _),
-             let .return(op?), let .padShape(op, at: _), let .squeezeShape(op, at: _),
+             let .return(op?), let .rank(op), let .shape(op), let .unitCount(op),
+             let .padShape(op, at: _), let .squeezeShape(op, at: _),
              let .extract(from: op, at: _), let .branchEnum(op, _), let .load(op),
              let .store(op, _), let .elementPointer(op, _), let .deallocate(op),
              let .allocateHeap(_, count: op), let .projectBox(op),

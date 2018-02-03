@@ -390,15 +390,15 @@ extension Parser {
         return try withPeekedToken("""
             dimensions separated by 'x', or 'scalar'
             """, { tok in
-            switch tok.kind {
-            case .keyword(.scalar):
-                consumeToken()
-                return .scalar
-            case .integer(_):
-                return try parseNonScalarShape().0
-            default:
-                return nil
-            }
+                switch tok.kind {
+                case .keyword(.scalar):
+                    consumeToken()
+                    return .scalar
+                case .integer(_):
+                    return try parseNonScalarShape().0
+                default:
+                    return nil
+                }
         })
     }
 
@@ -406,18 +406,18 @@ extension Parser {
         return try withPeekedToken("""
             a function or an associative operator
             """, { tok in
-            switch tok.kind {
-            case .identifier(_):
-                return try .function(parseUse(in: basicBlock).0)
-            case .opcode(.numericBinaryOp(let op)):
-                consumeToken()
-                return .numeric(op)
-            case .opcode(.booleanBinaryOp(let op)):
-                consumeToken()
-                return .boolean(op)
-            default:
-                return nil
-            }
+                switch tok.kind {
+                case .identifier(_):
+                    return try .function(parseUse(in: basicBlock).0)
+                case .opcode(.numericBinaryOp(let op)):
+                    consumeToken()
+                    return .numeric(op)
+                case .opcode(.booleanBinaryOp(let op)):
+                    consumeToken()
+                    return .boolean(op)
+                default:
+                    return nil
+                }
         })
     }
 
@@ -532,7 +532,7 @@ extension Parser {
             use = val.makeUse()
             let (type, typeSigRange) = try parseTypeSignature()
             range = tok.startLocation..<typeSigRange.upperBound
-            /// Verify that computed and parsed types match
+            /// Verify that computed and parsed types match.
             guard type == use.type else {
                 throw ParseError.typeMismatch(expected: use.type, range)
             }
@@ -883,7 +883,7 @@ extension Parser {
                 guard typeSig == fn.type else {
                     throw ParseError.typeMismatch(expected: fn.type, typeSigRange)
                 }
-                */
+                 */
                 var use = fn.makeUse()
                 use.type = allegedTy
                 return .apply(use, args)
@@ -1035,11 +1035,11 @@ extension Parser {
         func parseKind(isNamed: Bool) throws -> InstructionKind {
             let kind = try parseInstructionKind(in: basicBlock)
             let type = kind.type
-            /// If instruction kind gives invalid result, operands must be wrong
+            /// If instruction kind gives invalid result, operands must be wrong.
             guard type != .invalid else {
                 throw ParseError.invalidOperands(tok, kind.opcode)
             }
-            /// Cannot have void type
+            /// Cannot have void type.
             if isNamed, type == .void {
                 throw ParseError.cannotNameVoidValue(tok)
             }
@@ -1088,7 +1088,7 @@ extension Parser {
     }
 
     func parseBasicBlock(in function: Function) throws -> BasicBlock? {
-        /// Parse basic block header
+        /// Parse basic block header.
         guard let nameTok = currentToken,
             case .identifier(.basicBlock, let name) = nameTok.kind else {
             return nil
@@ -1099,25 +1099,25 @@ extension Parser {
         try consumeWrappablePunctuation(.rightParenthesis)
         try consume(.punctuation(.colon))
         try consumeOneOrMore(.newLine)
-        /// Retrieve previously added BB during scanning
+        /// Retrieve previously added BB during scanning.
         guard let bb = environment.basicBlocks[name] else {
             preconditionFailure("Should've been added during the symbol scanning stage")
         }
         /// Check if this prototype is already processed. If so, it's a redefinition
-        /// of this BB
+        /// of this BB.
         guard !environment.processedBasicBlocks.contains(bb) else {
             throw ParseError.redefinedIdentifier(nameTok)
         }
-        /// Add to the set of processed basic blocks
+        /// Add to the set of processed basic blocks.
         environment.processedBasicBlocks.insert(bb)
-        /// Parse BB's formal arguments
+        /// Parse BB's formal arguments.
         for (name, type) in args {
             let arg = Argument(name: name, type: type, parent: bb)
             bb.arguments.append(arg)
-            /// Insert args into symbol table
+            /// Insert arguments into symbol table.
             environment.locals[arg.name] = arg
         }
-        /// Parse instructions
+        /// Parse instructions.
         while let inst = try parseInstruction(in: bb) {
             bb.append(inst)
             try consumeOneOrMore(.newLine)
@@ -1183,14 +1183,14 @@ extension Parser {
     }
 
     func parseFunction(in module: Module) throws -> Function {
-        /// Parse attributes
+        /// Parse attributes.
         var attributes: Set<Function.Attribute> = []
         while case let .attribute(attr)? = currentToken?.kind {
             attributes.insert(attr)
             consumeToken()
             try consumeOneOrMore(.newLine)
         }
-        /// Parse declaration kind
+        /// Parse declaration kind.
         var declKind: Function.DeclarationKind?
         if case .punctuation(.leftSquareBracket)? = currentToken?.kind {
             consumeToken()
@@ -1198,31 +1198,31 @@ extension Parser {
             try consume(.punctuation(.rightSquareBracket))
             try consumeOneOrMore(.newLine)
         }
-        /// Parse main function declaration/definition
+        /// Parse main function declaration/definition.
         let funcTok = try consume(.keyword(.func))
         let (name, nameTok) = try parseIdentifier(ofKind: .global)
         let (type, typeSigRange) = try parseTypeSignature()
-        /// Ensure it's a function type
+        /// Verify that the type signature is a function type.
         guard case let .function(args, ret) = type.canonical else {
             throw ParseError.notFunctionType(typeSigRange)
         }
-        /// Retrieve previous added function during scanning
+        /// Retrieve previous added function during scanning.
         guard let function = environment.globals[name] as? Function else {
             preconditionFailure("Should've been added during the symbol scanning stage")
         }
         /// Check if this prototype is already processed. If so, it's a redefinition
-        /// of this function
+        /// of this function.
         guard !environment.processedFunctions.contains(function) else {
             throw ParseError.redefinedIdentifier(nameTok)
         }
-        /// Insert this function to the set of processed functions
+        /// Insert this function to the set of processed functions.
         environment.processedFunctions.insert(function)
-        /// Complete function's properties
+        /// Complete function's properties.
         function.declarationKind = declKind
         function.argumentTypes = args
         function.returnType = ret
         function.attributes = attributes
-        /// Scan basic block symbols and create prototypes in the symbol table
+        /// Scan basic block symbols and create prototypes in the symbol table.
         withPreservedState {
             while restTokens.count >= 2 {
                 let start = restTokens.startIndex
@@ -1238,7 +1238,7 @@ extension Parser {
                 consumeToken()
             }
         }
-        /// Parse definition in `{...}` when it's not a declaration
+        /// Parse definition in `{...}` when it's not a declaration.
         if function.isDefinition {
             consumeAnyNewLines()
             try consume(.punctuation(.leftCurlyBracket))
@@ -1248,14 +1248,14 @@ extension Parser {
             }
             try consume(.punctuation(.rightCurlyBracket))
         }
-        /// Otherwise if `{` follows the declaration, emit proper diagnostics
+        /// Otherwise if `{` follows the declaration, emit proper diagnostics.
         else if let tok = currentToken, tok.kind == .punctuation(.leftCurlyBracket) {
             throw ParseError.declarationCannotHaveBody(
                 declaration: funcTok.startLocation..<typeSigRange.upperBound,
                 body: tok
             )
         }
-        /// Clear function-local mappings from the symbol table
+        /// Clear function-local mappings from the symbol table.
         environment.basicBlocks.removeAll()
         environment.locals.removeAll()
         environment.processedBasicBlocks.removeAll()
@@ -1368,7 +1368,7 @@ public extension Parser {
         })
         let module = Module(name: name, stage: stage)
 
-        /// Scan nominal types and store in environment
+        /// Scan nominal types and store in environment.
         withPreservedState {
             while let tok = currentToken {
                 switch tok.kind {
@@ -1389,7 +1389,7 @@ public extension Parser {
             }
         }
 
-        /// Scan function symbols and create prototypes in the symbol table
+        /// Scan function symbols and create prototypes in the symbol table.
         withPreservedState {
             while restTokens.count >= 3 {
                 let start = restTokens.startIndex
@@ -1397,7 +1397,7 @@ public extension Parser {
                 if case (.newLine, .keyword(.func), .identifier(.global, let name)) = (tok0.kind, tok1.kind, tok2.kind) {
                     restTokens.removeFirst(3)
                     let (type, typeSigRange) = try parseTypeSignature()
-                    /// Ensure it's a function type
+                    /// Verify that the type signature is a function type.
                     guard case let .function(argTypes, retType) = type.canonical else {
                         throw ParseError.notFunctionType(typeSigRange)
                     }
@@ -1411,7 +1411,7 @@ public extension Parser {
         }
 
         try consumeOneOrMore(.newLine)
-        /// Parse top-level declarations/definitions
+        /// Parse top-level declarations/definitions.
         while let tok = currentToken {
             switch tok.kind {
             case .keyword(.type):
