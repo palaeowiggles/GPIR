@@ -35,6 +35,7 @@ public indirect enum Literal {
     case tensor([Use])
     case tuple([Use])
     case array([Use])
+    // Add constant expression
     case `struct`([(String, Use)])
     case enumCase(String, [Use])
 }
@@ -243,7 +244,7 @@ public extension Use {
         switch use {
         case let .literal(_, lit):
             return lit
-        case let .instruction(_, inst):
+        case let .definition(.instruction(inst)):
             guard case let .literal(lit, _) = inst.kind else { return nil }
             return lit
         default:

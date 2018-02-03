@@ -964,7 +964,7 @@ extension Use : Verifiable {
     public func performVerification() throws {
         /// Verify value if not function
         switch self {
-        case .function: break
+        case .definition(.function): break
         default: try value.performVerification()
         }
         /// Type must be valid
@@ -975,18 +975,6 @@ extension Use : Verifiable {
             guard lhs == rhs else {
                 throw VerificationError.useTypeMismatch(self)
             }
-        }
-        switch self {
-        case let .argument(ty, def):
-            try verify(ty, def.type)
-        case let .instruction(ty, def):
-            try verify(ty, def.type)
-        case let .variable(ty, gv):
-            try verify(ty, gv.type.pointer)
-        case let .function(ty, fun):
-            try verify(ty, fun.type)
-        case .literal:
-            break
         }
     }
 }

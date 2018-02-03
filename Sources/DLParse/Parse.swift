@@ -532,6 +532,7 @@ extension Parser {
             use = val.makeUse()
             let (type, typeSigRange) = try parseTypeSignature()
             range = tok.startLocation..<typeSigRange.upperBound
+            /// Verify that computed and parsed types match
             guard type == use.type else {
                 throw ParseError.typeMismatch(expected: use.type, range)
             }
@@ -580,7 +581,7 @@ extension Parser {
         return (use, range)
     }
 
-    func parseInstructionKind(in basicBlock: BasicBlock) throws -> InstructionKind {
+    func parseInstructionKind(in basicBlock: BasicBlock?) throws -> InstructionKind {
         let opcode: Opcode = try withPeekedToken("an opcode") { tok in
             guard case let .opcode(opcode) = tok.kind else {
                 return nil
@@ -639,7 +640,14 @@ extension Parser {
             if case .newLine? = currentToken?.kind {
                 return .return(nil)
             }
-            return .return(try parseUse(in: basicBlock).0)
+            let (val, range) = try parseUse(in: basicBlock)
+            guard let returnType = basicBlock?.parent.returnType else {
+                throw ParseError.notInBasicBlock(range)
+            }
+            guard val.type == returnType else {
+                throw ParseError.typeMismatch(expected: returnType, range)
+            }
+            return .return(val)
 
         /// 'dataTypeCast' <val> 'to' <data_type>
         case .dataTypeCast:
@@ -1258,14 +1266,15 @@ extension Parser {
         try consume(.keyword(.var))
         let (name, _) = try parseIdentifier(ofKind: .global, isDefinition: true)
         let (type, _) = try parseTypeSignature()
-        let variable = Variable(name: name, type: type)
+        let variable = Variable(name: name, valueType: type)
         environment.globals[name] = variable
         return variable
     }
 
-    func parseTypeAlias(in module: Module) throws -> TypeAlias {
+    func parseTypeAlias(in module: Module, isDefinition: Bool = true) throws -> TypeAlias {
         try consume(.keyword(.type))
-        let (name, _) = try parseIdentifier(ofKind: .type, isDefinition: true)
+        let (name, _) = try parseIdentifier(ofKind: .type,
+                                            isDefinition: isDefinition)
         try consumeWrappablePunctuation(.equal)
         let type: Type? = try withPeekedToken("a type") { tok in
             switch tok.kind {
@@ -1281,9 +1290,10 @@ extension Parser {
         return alias
     }
 
-    func parseStruct(in module: Module) throws -> StructType {
+    func parseStruct(in module: Module, isDefinition: Bool = true) throws -> StructType {
         try consume(.keyword(.struct))
-        let (name, _) = try parseIdentifier(ofKind: .type, isDefinition: true)
+        let (name, _) = try parseIdentifier(ofKind: .type,
+                                            isDefinition: isDefinition)
         try consumeWrappablePunctuation(.leftCurlyBracket)
         let fields: [StructType.Field] = try parseMany({
             if currentToken?.kind == .punctuation(.rightCurlyBracket) {
@@ -1302,9 +1312,10 @@ extension Parser {
         return structTy
     }
 
-    func parseEnum(in module: Module) throws -> EnumType {
+    func parseEnum(in module: Module, isDefinition: Bool = true) throws -> EnumType {
         try consume(.keyword(.enum))
-        let (name, _) = try parseIdentifier(ofKind: .type, isDefinition: true)
+        let (name, _) = try parseIdentifier(ofKind: .type,
+                                            isDefinition: isDefinition)
         let enumTy = EnumType(name: name, cases: [])
         environment.nominalTypes[name] = .enum(enumTy)
         try consumeWrappablePunctuation(.leftCurlyBracket)
@@ -1357,15 +1368,42 @@ public extension Parser {
         })
         let module = Module(name: name, stage: stage)
 
+        /// Scan nominal types and store in environment
+        withPreservedState {
+            while let tok = currentToken {
+                switch tok.kind {
+                case .keyword(.type):
+                    let type = try parseTypeAlias(in: module)
+                    module.typeAliases.append(type)
+
+                case .keyword(.struct):
+                    let structure = try parseStruct(in: module)
+                    module.structs.append(structure)
+
+                case .keyword(.enum):
+                    let enumeration = try parseEnum(in: module)
+                    module.enums.append(enumeration)
+
+                default: consumeToken()
+                }
+            }
+        }
+
         /// Scan function symbols and create prototypes in the symbol table
         withPreservedState {
             while restTokens.count >= 3 {
                 let start = restTokens.startIndex
                 let (tok0, tok1, tok2) = (restTokens[start], restTokens[start+1], restTokens[start+2])
                 if case (.newLine, .keyword(.func), .identifier(.global, let name)) = (tok0.kind, tok1.kind, tok2.kind) {
-                    let proto = Function(name: name, argumentTypes: [], returnType: .invalid, parent: module)
-                    environment.globals[name] = proto
                     restTokens.removeFirst(3)
+                    let (type, typeSigRange) = try parseTypeSignature()
+                    /// Ensure it's a function type
+                    guard case let .function(argTypes, retType) = type.canonical else {
+                        throw ParseError.notFunctionType(typeSigRange)
+                    }
+                    let proto = Function(name: name, argumentTypes: argTypes,
+                                         returnType: retType, parent: module)
+                    environment.globals[name] = proto
                     continue
                 }
                 consumeToken()
@@ -1377,16 +1415,13 @@ public extension Parser {
         while let tok = currentToken {
             switch tok.kind {
             case .keyword(.type):
-                let type = try parseTypeAlias(in: module)
-                module.typeAliases.append(type)
+                _ = try parseTypeAlias(in: module, isDefinition: false)
 
             case .keyword(.struct):
-                let structure = try parseStruct(in: module)
-                module.structs.append(structure)
+                _ = try parseStruct(in: module, isDefinition: false)
 
             case .keyword(.enum):
-                let enumeration = try parseEnum(in: module)
-                module.enums.append(enumeration)
+                _ = try parseEnum(in: module, isDefinition: false)
 
             case .keyword(.func), .attribute(_), .punctuation(.leftSquareBracket):
                 let fn = try parseFunction(in: module)

@@ -121,12 +121,15 @@ public extension DominatorTree where Node == BasicBlock {
 public extension DominatorTree where Node == BasicBlock {
     func properlyDominates(_ use: Use, _ instruction: Instruction) -> Bool {
         switch use {
-        case .variable, .literal, .function: return true
+        case .definition(.variable),
+             .definition(.function),
+             .literal:
+            return true
 
-        case let .argument(_, arg):
+        case let .definition(.argument(arg)):
             return self.dominates(arg.parent, instruction.parent)
 
-        case let .instruction(_, usee):
+        case let .definition(.instruction(usee)):
             return properlyDominates(usee, instruction)
         }
     }

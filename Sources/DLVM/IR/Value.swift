@@ -43,8 +43,8 @@ public protocol Named {
     var name: String { get }
 }
 
-/// Anything that may have a name
-public protocol MaybeNamed {
+/// A named value
+public protocol NamedValue : Value {
     var name: String? { get }
 }
 
@@ -53,4 +53,70 @@ public protocol User {
     var operands: [Use] { get }
 }
 
-public typealias Definition = Value & AnyObject
+/// Definition
+public enum Definition : Hashable, NamedValue {
+    case argument(Argument)
+    case function(Function)
+    case instruction(Instruction)
+    case variable(Variable)
+}
+
+public extension Definition {
+    var type: Type {
+        get {
+            switch self {
+            case .argument(let x):
+                return x.type
+            case .instruction(let x):
+                return x.type
+            case .variable(let x):
+                return x.type
+            case .function(let x):
+                return x.type
+            }
+        }
+        set {
+            switch self {
+            case let .argument(x):
+                self = .argument(x)
+            case let .instruction(x):
+                self = .instruction(x)
+            case let .variable(x):
+                self = .variable(x)
+            case let .function(x):
+                self = .function(x)
+            }
+        }
+    }
+
+    var name: String? {
+        switch self {
+        case .argument(let x):
+            return x.name
+        case .instruction(let x):
+            return x.name
+        case .variable(let x):
+            return x.name
+        case .function(let x):
+            return x.name
+        }
+    }
+
+    public func makeUse() -> Use {
+        switch self {
+        case .argument(let x): return x.makeUse()
+        case .instruction(let x): return x.makeUse()
+        case .variable(let x): return x.makeUse()
+        case .function(let x): return x.makeUse()
+        }
+    }
+
+    public func performVerification() throws {
+        switch self {
+        case .argument(let x): try x.performVerification()
+        case .instruction(let x): try x.performVerification()
+        case .variable(let x): try x.performVerification()
+        case .function(let x): try x.performVerification()
+        }
+    }
+}

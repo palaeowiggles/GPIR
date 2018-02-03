@@ -88,8 +88,8 @@ extension IRBuilder {
 
     @discardableResult
     open func buildGlobalValue(named name: String,
-                               type: Type) -> Variable {
-        let value = Variable(name: name, type: type)
+                               valueType: Type) -> Variable {
+        let value = Variable(name: name, valueType: valueType)
         module.variables.append(value)
         return value
     }

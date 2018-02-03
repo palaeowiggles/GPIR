@@ -83,8 +83,7 @@ fileprivate extension Module {
 
 fileprivate class ADContext {
     var blocks: [BasicBlock : BasicBlock] = [:]
-    var adjoints: [AnyHashable : Use] = [:]
-    var clones: [AnyHashable : Use] = [:]
+    var adjoints: [Definition : Use] = [:]
 
     unowned let primal: Function
     unowned let adjoint: Function
@@ -107,22 +106,22 @@ fileprivate class ADContext {
         guard let definition = key.definition else {
             fatalError("\(key) has no definition")
         }
-        return adjoints[ObjectIdentifier(definition)]
+        return adjoints[definition]
     }
 
     func adjoint(for key: Instruction) -> Use? {
-        return adjoints[ObjectIdentifier(key as Definition)]
+        return adjoints[.instruction(key)]
     }
 
     func insertAdjoint(_ value: Use, for key: Use) {
         guard let definition = key.definition else {
             fatalError("\(key) has no definition")
         }
-        adjoints[ObjectIdentifier(definition)] = value
+        adjoints[definition] = value
     }
 
     func insertAdjoint(_ value: Use, for key: Instruction) {
-        adjoints[ObjectIdentifier(key as Definition)] = value
+        adjoints[.instruction(key)] = value
     }
 }
 
@@ -174,8 +173,8 @@ fileprivate extension Differentiation {
             /// Get return value
             let retVal: Use
             if let sourceIndex = sourceIndex {
-                guard case let .instruction(ty, inst) = returnInst.operands[0],
-                    case .literal(let lit, ty) = inst.kind,
+                guard let inst = returnInst.operands[0].instruction,
+                    case .literal(let lit, inst.type) = inst.kind,
                     case let .tuple(elements) = lit,
                     elements.indices.contains(sourceIndex) else {
                     fatalError("""
@@ -204,7 +203,7 @@ fileprivate extension Differentiation {
             var instsToDiff: Set<Instruction>
             if sourceIndex != nil {
                 switch retVal {
-                case let .instruction(_, inst):
+                case let .definition(.instruction(inst)):
                     instsToDiff = Set(inst.predecessors).union([inst])
                 default:
                     instsToDiff = []
@@ -262,7 +261,7 @@ fileprivate extension Differentiation {
         var operandAdjoints: [(operand: Use, adjoint: Use)]
         switch inst.kind {
         /* Function application */
-        case let .apply(.function(_, fn), operands):
+        case let .apply(.definition(.function(fn)), operands):
             let adjoint: Function
             let config = AdjointConfiguration(
                 primal: fn, sourceIndex: nil, argumentIndices: nil,
