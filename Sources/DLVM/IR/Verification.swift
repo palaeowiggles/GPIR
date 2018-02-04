@@ -420,7 +420,7 @@ extension InstructionKind {
             guard IntrinsicRegistry.global.intrinsic(named: op.opcode) == op else {
                 throw VerificationError.invalidIntrinsic(op, instruction)
             }
-            guard op.resultType(for: args) != .invalid else {
+            guard op.resultType(for: args).isValid else {
                 throw VerificationError.invalidType(instruction)
             }
 

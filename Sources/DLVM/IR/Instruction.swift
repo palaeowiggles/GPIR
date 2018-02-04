@@ -674,7 +674,7 @@ extension InstructionKind : Equatable {
     public static func == (lhs: InstructionKind, rhs: InstructionKind) -> Bool {
         switch (lhs, rhs) {
         case let (.builtin(op1, args1), .builtin(op2, args2)):
-            return op1.self == op2.self && args1 == args2
+            return op1 == op2 && args1 == args2
         case let (.literal(x1, t1), .literal(x2, t2)):
             return x1 == x2 && t1 == t2
         case let (.numericUnary(op1, x1), .numericUnary(op2, y1)):

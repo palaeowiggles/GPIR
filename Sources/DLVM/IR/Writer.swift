@@ -164,12 +164,17 @@ extension InstructionKind : TextOutputStreamable {
         switch self {
         case let .builtin(op, args):
             target.write("""
-                \(op.description)(\(args.joinedDescription)) -> \(op.resultType(for: args))
+                \(op.description)(\(args.joinedDescription)) \
+                -> \(op.resultType(for: args))
                 """)
         case let .branch(bb, args):
             target.write("branch '\(bb.name)(\(args.joinedDescription))")
         case let .conditional(op, thenBB, thenArgs, elseBB, elseArgs):
-            target.write("conditional \(op) then '\(thenBB.name)(\(thenArgs.joinedDescription)) else '\(elseBB.name)(\(elseArgs.joinedDescription))")
+            target.write("""
+                conditional \(op) \
+                then '\(thenBB.name)(\(thenArgs.joinedDescription)) \
+                else '\(elseBB.name)(\(elseArgs.joinedDescription))
+                """)
         case let .return(op):
             target.write("return")
             if let op = op {
