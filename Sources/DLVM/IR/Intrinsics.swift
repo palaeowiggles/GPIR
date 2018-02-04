@@ -58,14 +58,14 @@ public class Intrinsic {
     }
 }
 
-extension Intrinsic {
-    public static var description: String {
+public extension Intrinsic {
+    static var description: String {
         return "builtin \"\(self.opcode)\""
     }
 }
 
 extension Intrinsic : Equatable {
-    public static func == (lhs: Intrinsic, rhs: Intrinsic) -> Bool {
+    public static func ==(lhs: Intrinsic, rhs: Intrinsic) -> Bool {
         return type(of: lhs) == type(of: rhs)
     }
 }
