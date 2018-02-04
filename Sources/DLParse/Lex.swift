@@ -29,7 +29,7 @@ public enum Keyword {
     case stage, raw, optimizable
     case `struct`, `enum`, `case`, `func`, `var`, stack
     case type, opaque
-    case at, to, from, by, upto
+    case at, to, from, by, upto, of
     case kernel, strides, leftDilation, rightDilation, groups
     case padding, none, half, full
     case then, `else`
@@ -460,6 +460,7 @@ private extension Lexer {
         case "upto": kind = .keyword(.upto)
         case "from": kind = .keyword(.from)
         case "by": kind = .keyword(.by)
+        case "of": kind = .keyword(.of)
         case "then": kind = .keyword(.then)
         case "else": kind = .keyword(.else)
         case "kernel": kind = .keyword(.kernel)

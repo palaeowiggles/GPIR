@@ -132,18 +132,18 @@ internal extension Function {
         func newUse(from old: Use) -> Use {
             switch old {
             /// If recursion, replace function with new function
-            case .function(_, self):
+            case .definition(.function(self)):
                 return %other
-            case .function, .variable:
+            case .definition(.function), .definition(.variable):
                 return old
             case let .literal(ty, lit) where lit.isAggregate:
                 return .literal(
                     ty, lit.substituting(newUse(from: old), for: old))
             case let .literal(ty, lit):
                 return .literal(ty, lit)
-            case let .argument(_, arg):
+            case let .definition(.argument(arg)):
                 return %newArgs[arg]!
-            case let .instruction(_, inst):
+            case let .definition(.instruction(inst)):
                 return %newInsts[inst]!
             }
         }

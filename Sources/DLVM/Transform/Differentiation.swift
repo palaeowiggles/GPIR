@@ -42,12 +42,13 @@ open class Differentiation: TransformPass {
                                        parent: adjoint[0])
                 adjoint[0].arguments.append(seedArg)
             }
-            /// Expand adjoint function
+            /// Generate adjoint function
             let context = ADContext(primal: config.primal, adjoint: adjoint)
-            expand(adjoint, in: context, from: config.sourceIndex,
-                   wrt: (config.argumentIndices ?? Array(config.primal.argumentTypes.indices)),
-                   keeping: config.keptIndices, seedable: config.isSeedable,
-                   workList: &workList, adjoints: &adjoints)
+            generateAdjoint(
+                adjoint, in: context, from: config.sourceIndex,
+                wrt: (config.argumentIndices ?? Array(config.primal.argumentTypes.indices)),
+                keeping: config.keptIndices, seedable: config.isSeedable,
+                workList: &workList, adjoints: &adjoints)
             /// Add primal and adjoint functions to mapping
             let newAdjoints = (adjoints[config.primal] ?? []) + [(config, adjoint)]
             adjoints[config.primal] = newAdjoints
@@ -82,8 +83,7 @@ fileprivate extension Module {
 
 fileprivate class ADContext {
     var blocks: [BasicBlock : BasicBlock] = [:]
-    var adjoints: [AnyHashable : Use] = [:]
-    var clones: [AnyHashable : Use] = [:]
+    var adjoints: [Definition : Use] = [:]
 
     unowned let primal: Function
     unowned let adjoint: Function
@@ -106,36 +106,38 @@ fileprivate class ADContext {
         guard let definition = key.definition else {
             fatalError("\(key) has no definition")
         }
-        return adjoints[ObjectIdentifier(definition)]
+        return adjoints[definition]
     }
 
     func adjoint(for key: Instruction) -> Use? {
-        return adjoints[ObjectIdentifier(key as Definition)]
+        return adjoints[.instruction(key)]
     }
 
     func insertAdjoint(_ value: Use, for key: Use) {
         guard let definition = key.definition else {
             fatalError("\(key) has no definition")
         }
-        adjoints[ObjectIdentifier(definition)] = value
+        adjoints[definition] = value
     }
 
     func insertAdjoint(_ value: Use, for key: Instruction) {
-        adjoints[ObjectIdentifier(key as Definition)] = value
+        adjoints[.instruction(key)] = value
     }
 }
 
 fileprivate extension Differentiation {
-    private static func expand(_ function: Function, in context: ADContext,
-                               from sourceIndex: Int?, wrt argIndices: [Int],
-                               keeping keptIndices: [Int],
-                               seedable isSeedable: Bool,
-                               workList: inout [Function],
-                               adjoints: inout AdjointMapping) {
-        let builder = IRBuilder(module: function.parent)
+    private static func generateAdjoint(
+        _ adjoint: Function, in context: ADContext,
+        from sourceIndex: Int?, wrt argIndices: [Int],
+        keeping keptIndices: [Int],
+        seedable isSeedable: Bool,
+        workList: inout [Function],
+        adjoints: inout AdjointMapping
+    ) {
+        let builder = IRBuilder(module: adjoint.parent)
         /// Canonicalize loops
-        let cfg = function.analysis(from: ControlFlowGraphAnalysis.self)
-        var loopInfo = function.analysis(from: LoopAnalysis.self)
+        let cfg = adjoint.analysis(from: ControlFlowGraphAnalysis.self)
+        var loopInfo = adjoint.analysis(from: LoopAnalysis.self)
         let loops = Set(loopInfo.innerMostLoops.values)
         for loop in loops {
             /// Create a unique loop preheader
@@ -145,12 +147,12 @@ fileprivate extension Differentiation {
                     .filter { !loop.contains($0) }
                 /// Create preheader and connect it with header
                 let preheader = BasicBlock(
-                    name: function.makeFreshName("preheader"),
+                    name: adjoint.makeFreshName("preheader"),
                     arguments: loop.header.arguments.map{
-                        (function.makeFreshName($0.name), $0.type)
+                        (adjoint.makeFreshName($0.name), $0.type)
                     },
-                    parent: function)
-                function.insert(preheader, before: loop.header)
+                    parent: adjoint)
+                adjoint.insert(preheader, before: loop.header)
                 builder.move(to: preheader)
                 builder.branch(loop.header, preheader.arguments.map(%))
                 /// Change all original predecessors to branch to preheader
@@ -166,13 +168,13 @@ fileprivate extension Differentiation {
             }
         }
         /// Seed on return instructions
-        let exits = function.premise.exits
+        let exits = adjoint.premise.exits
         for (block, returnInst) in exits {
             /// Get return value
             let retVal: Use
             if let sourceIndex = sourceIndex {
-                guard case let .instruction(ty, inst) = returnInst.operands[0],
-                    case .literal(let lit, ty) = inst.kind,
+                guard let inst = returnInst.operands[0].instruction,
+                    case .literal(let lit, inst.type) = inst.kind,
                     case let .tuple(elements) = lit,
                     elements.indices.contains(sourceIndex) else {
                     fatalError("""
@@ -187,7 +189,7 @@ fileprivate extension Differentiation {
             /// Get seed value and insert into context
             let seed: Use
             if isSeedable {
-                guard let seedArg = function[0].arguments.last else {
+                guard let seedArg = adjoint[0].arguments.last else {
                     fatalError("No seed argument")
                 }
                 seed = %seedArg
@@ -201,7 +203,7 @@ fileprivate extension Differentiation {
             var instsToDiff: Set<Instruction>
             if sourceIndex != nil {
                 switch retVal {
-                case let .instruction(_, inst):
+                case let .definition(.instruction(inst)):
                     instsToDiff = Set(inst.predecessors).union([inst])
                 default:
                     instsToDiff = []
@@ -215,7 +217,7 @@ fileprivate extension Differentiation {
             }
             instsToDiff.forEach(markInstruction)
             /// Iterate through instructions in reverse order and differentiate
-            for inst in function.instructions.reversed()
+            for inst in adjoint.instructions.reversed()
                 where instsToDiff.contains(inst) {
                 differentiate(inst, using: builder, in: context,
                               returnValue: retVal, workList: &workList,
@@ -226,16 +228,16 @@ fileprivate extension Differentiation {
             /// Build new return
             var newReturn: [Use] = []
             newReturn += argIndices.map { i in
-                guard let argAdjoint = context.adjoint(for: %function[0].arguments[i]) else {
+                guard let argAdjoint = context.adjoint(for: %adjoint[0].arguments[i]) else {
                     fatalError("""
-                        Adjoint not found for argument \(function[0].arguments[i]) \
-                        in function \(function.name)
+                        Adjoint not found for argument \(adjoint[0].arguments[i]) \
+                        in function \(adjoint.name)
                         """)
                 }
                 return argAdjoint
             }
             newReturn += keptIndices.map { returnInst.operands[$0] }
-            let tupleLit = builder.buildInstruction(.literal(.tuple(newReturn), function.returnType))
+            let tupleLit = builder.buildInstruction(.literal(.tuple(newReturn), adjoint.returnType))
             builder.return(%tupleLit)
         }
     }
@@ -259,7 +261,7 @@ fileprivate extension Differentiation {
         var operandAdjoints: [(operand: Use, adjoint: Use)]
         switch inst.kind {
         /* Function application */
-        case let .apply(.function(_, fn), operands):
+        case let .apply(.definition(.function(fn)), operands):
             let adjoint: Function
             let config = AdjointConfiguration(
                 primal: fn, sourceIndex: nil, argumentIndices: nil,
@@ -270,9 +272,9 @@ fileprivate extension Differentiation {
                 adjoint = funcAdjoints[gradIndex].adjoint
             } else {
                 guard let adjointType = fn.adjointType(from: nil,
-                                                         wrt: nil,
-                                                         keeping: [],
-                                                         seedable: true),
+                                                       wrt: nil,
+                                                       keeping: [],
+                                                       seedable: true),
                     case let .function(argumentTypes, returnType) = adjointType else {
                         fatalError("Function @\(fn.name) is not differentiable")
                 }
@@ -293,8 +295,9 @@ fileprivate extension Differentiation {
 
         /* Default case, use defined adjoints */
         default:
-            guard let tmp = inst.kind.operandAdjoints(
-                using: bd, primal: %inst, seed: instAdjoint) else {
+            guard let tmp = inst.kind.operandAdjoints(using: bd, primal: %inst,
+                                                      seed: instAdjoint,
+                                                      operands: inst.operands) else {
                 fatalError("Unimplemented \(inst)")
             }
             operandAdjoints = tmp

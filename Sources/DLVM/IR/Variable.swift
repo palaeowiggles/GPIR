@@ -20,16 +20,22 @@
 /// Global variable
 public class Variable: Named, HashableByReference {
     public var name: String
-    public var type: Type
+    /// The type of the underlying value of the variable
+    public var valueType: Type
 
-    public init(name: String, type: Type) {
+    public init(name: String, valueType: Type) {
         self.name = name
-        self.type = type
+        self.valueType = valueType
+    }
+
+    /// The pointer type wrapping the value type of the variable
+    public var type: Type {
+        return .pointer(valueType)
     }
 }
 
-extension Variable: Value {
+extension Variable : Value {
     public func makeUse() -> Use {
-        return .variable(type.pointer, self)
+        return .definition(.variable(self))
     }
 }

@@ -230,6 +230,12 @@ extension InstructionKind : TextOutputStreamable {
             }
         case let .dataTypeCast(op, t):
             target.write("dataTypeCast \(op) to \(t)")
+        case let .rank(v):
+            target.write("rank of \(v)")
+        case let .shape(v):
+            target.write("shape of \(v)")
+        case let .unitCount(v):
+            target.write("unitCount of \(v)")
         case let .padShape(op, at: index):
             target.write("padShape \(op) at \(index)")
         case let .squeezeShape(op, at: index):
@@ -302,9 +308,9 @@ extension Instruction : TextOutputStreamable {
     }
 }
 
-extension Variable: TextOutputStreamable {
+extension Variable : TextOutputStreamable {
     public func write<Target : TextOutputStream>(to target: inout Target) {
-        target.write("var @\(name): \(type)")
+        target.write("var @\(name): \(valueType)")
     }
 }
 
@@ -336,15 +342,15 @@ extension Use : TextOutputStreamable {
 
     public var identifier: String {
         switch self {
-        case let .variable(_, ref):
-            return "@\(ref.name)"
-        case let .instruction(_, ref):
-            return ref.printedName.flatMap{"%\($0)"} ?? "%_"
-        case let .argument(_, ref):
-            return "%\(ref.name)"
         case let .literal(_, lit):
             return lit.description
-        case let .function(_, ref):
+        case let .definition(.variable(ref)):
+            return "@\(ref.name)"
+        case let .definition(.instruction(ref)):
+            return ref.printedName.flatMap{"%\($0)"} ?? "%_"
+        case let .definition(.argument(ref)):
+            return "%\(ref.name)"
+        case let .definition(.function(ref)):
             return "@\(ref.name)"
         }
     }

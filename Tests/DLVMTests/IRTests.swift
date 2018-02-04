@@ -31,7 +31,7 @@ class IRTests : XCTestCase {
         ])
 
     lazy var struct1Global =
-        builder.buildGlobalValue(named: "struct1", type: struct1.type)
+        builder.buildGlobalValue(named: "struct1", valueType: struct1.type)
 
     var enum1: EnumType {
         let tmp = builder.buildEnum(
@@ -42,7 +42,7 @@ class IRTests : XCTestCase {
     }
 
     lazy var enum1Global: Variable =
-        builder.buildGlobalValue(named: "enum1", type: enum1.type)
+        builder.buildGlobalValue(named: "enum1", valueType: enum1.type)
 
     func testInitializeStruct() {
         let structLit: Literal = .struct([
@@ -101,9 +101,9 @@ class IRTests : XCTestCase {
     }
 
     func testWriteGlobal() {
-        let val1 = builder.buildGlobalValue(named: "one", type: .int(32))
+        let val1 = builder.buildGlobalValue(named: "one", valueType: .int(32))
         XCTAssertEqual("\(val1)", "var @one: i32")
-        let val2 = builder.buildGlobalValue(named: "two", type: *.int(32))
+        let val2 = builder.buildGlobalValue(named: "two", valueType: *.int(32))
         XCTAssertEqual("\(val2)", "var @two: *i32")
     }
 

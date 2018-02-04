@@ -71,7 +71,7 @@ public extension AlgebraicExpression {
 
     /// Remove intermediate instructions from the basic block
     func removeIntermediates(upTo barriers: AlgebraicExpression...) {
-        let barriers = Set(barriers.lazy.flatMap { $0.topInstruction })
+        let barriers = Set(barriers.lazy.compactMap { $0.topInstruction })
         func remove(_ expr: AlgebraicExpression) {
             if let inst = expr.topInstruction, barriers.contains(inst) {
                 return
@@ -214,7 +214,7 @@ open class AlgebraicExpressionAnalysis : AnalysisPass {
             from use: Use,
             isEntry: Bool = false) -> AlgebraicExpression {
             /// If not an instruction in the current basic block, it's an atom
-            guard case let .instruction(_, inst) = use, inst.parent == bb else {
+            guard let inst = use.instruction, inst.parent == bb else {
                 return .atom(use)
             }
             /// Treat nodes with more than one users as atoms when and only when

@@ -88,8 +88,8 @@ extension IRBuilder {
 
     @discardableResult
     open func buildGlobalValue(named name: String,
-                               type: Type) -> Variable {
-        let value = Variable(name: name, type: type)
+                               valueType: Type) -> Variable {
+        let value = Variable(name: name, valueType: valueType)
         module.variables.append(value)
         return value
     }
@@ -333,11 +333,11 @@ public extension IRBuilder {
     }
 
     func shapeCast(_ source: Use, to targetShape: TensorShape) -> Instruction {
-        return buildInstruction(.shapeCast(source, targetShape))
+        return buildInstruction(.shapeCast(source, to: targetShape))
     }
 
     func bitCast(_ source: Use, to targetType: Type) -> Instruction {
-        return buildInstruction(.bitCast(source, targetType))
+        return buildInstruction(.bitCast(source, to: targetType))
     }
 
     func extract(from source: Use, at indices: [ElementKey]) -> Instruction {

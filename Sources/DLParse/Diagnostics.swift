@@ -46,6 +46,7 @@ public enum ParseError : Error {
     case anonymousIdentifierNotInLocal(Token)
     case invalidAnonymousIdentifierIndex(Token)
     case notFunctionType(SourceRange)
+    case notInBasicBlock(SourceRange)
     case invalidAttributeArguments(SourceLocation)
     case declarationCannotHaveBody(declaration: SourceRange, body: Token)
     case cannotNameVoidValue(Token)
@@ -92,7 +93,8 @@ public extension ParseError {
         case let .typeMismatch(_, range),
              let .undefinedIntrinsic(_, range),
              let .invalidReductionCombinator(_, range),
-             let .notFunctionType(range):
+             let .notFunctionType(range),
+             let .notInBasicBlock(range):
             return range.lowerBound
         case let .invalidAttributeArguments(loc):
             return loc
@@ -144,6 +146,8 @@ extension ParseError : CustomStringConvertible {
             desc += "anonymous identifier \(tok) has invalid index"
         case let .notFunctionType(range):
             desc += "type signature at \(range) is not a function type"
+        case let .notInBasicBlock(range):
+            desc += "return at \(range) is not in a basic block"
         case .invalidAttributeArguments(_):
             desc += "invalid attribute arguments"
         case let .declarationCannotHaveBody(declaration: declRange, _):
@@ -244,6 +248,9 @@ extension Opcode : CustomStringConvertible {
         case .reverse: return "reverse"
         case .slice: return "slice"
         case .convolve: return "convolve"
+        case .rank: return "rank"
+        case .shape: return "shape"
+        case .unitCount: return "unitCount"
         case .padShape: return "padShape"
         case .squeezeShape: return "squeezeShape"
         case .shapeCast: return "shapeCast"

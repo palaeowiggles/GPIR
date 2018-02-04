@@ -18,23 +18,27 @@
 //
 
 public struct DataFlowGraph {
-    fileprivate var users: [ObjectIdentifier : Set<Instruction>] = [:]
+    fileprivate var users: [Definition : Set<Instruction>] = [:]
 }
 
 fileprivate extension DataFlowGraph {
     mutating func insert(_ user: Instruction, for def: Definition) {
-        let key = ObjectIdentifier(def)
-        if !users.keys.contains(key) {
-            users[key] = []
+        if !users.keys.contains(def) {
+            users[def] = []
         }
-        users[key]!.insert(user)
+        users[def]!.insert(user)
     }
 }
 
 public extension DataFlowGraph {
     /// Returns a set of users
     func successors(of def: Definition) -> Set<Instruction> {
-        return users[ObjectIdentifier(def)] ?? []
+        return users[def] ?? []
+    }
+
+    /// Returns a set of users
+    func successors(of inst: Instruction) -> Set<Instruction> {
+        return successors(of: .instruction(inst))
     }
 
     /// Returns a set of users within the basic block
@@ -49,7 +53,7 @@ public extension DataFlowGraph {
 
     /// Predecessors
     func predecessors(of inst: Instruction) -> [Definition] {
-        return inst.operands.compactMap {$0.definition}
+        return inst.operands.compactMap { $0.definition }
     }
 }
 
@@ -132,7 +136,7 @@ extension Instruction : ForwardGraphNode {
 
 extension Instruction : BackwardGraphNode {
     public var predecessors: AnyCollection<Instruction> {
-        return AnyCollection(operands.lazy.flatMap {
+        return AnyCollection(operands.lazy.compactMap {
             $0.instruction
         })
     }
