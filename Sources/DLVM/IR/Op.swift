@@ -302,7 +302,7 @@ public enum ReductionCombinator : Equatable {
         case (.numeric(let op1), .numeric(let op2)):
             return op1 == op2
         case (.numericBuiltin(let op1), .numericBuiltin(let op2)):
-            return op1.self == op2.self
+            return op1 == op2
         default: return false
         }
     }

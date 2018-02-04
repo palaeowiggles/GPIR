@@ -243,7 +243,11 @@ extension InstructionKind : TextOutputStreamable {
         case let .shapeCast(op, s):
             target.write("shapeCast \(op) to \(s)")
         case let .apply(f, args):
-            target.write("apply \(f.identifier)(\(args.joinedDescription)): \(f.type)")
+            var retType: Type = .invalid
+            if case let .function(_, fRetType) = f.type {
+                retType = fRetType
+            }
+            target.write("apply \(f.identifier)(\(args.joinedDescription)) -> \(retType)")
         case .createStack:
             target.write("createStack")
         case let .destroyStack(stack):

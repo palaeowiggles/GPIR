@@ -39,8 +39,8 @@ func @prediction: ($Classifier, $Tree) -> <1 x 2 x f32> {
 'entry(%self: $Classifier, %tree: $Tree):
     branchEnum %tree: $Tree case ?combine 'bb0 case ?word 'bb1
 'bb0(%left: $Tree, %v1: <2 x f32>, %right: $Tree):
-    %1.0 = apply @prediction(%self: $Classifier, %left: $Tree): ($Classifier, $Tree) -> <1 x 2 x f32>
-    %1.1 = apply @prediction(%self: $Classifier, %right: $Tree): ($Classifier, $Tree) -> <1 x 2 x f32>
+    %1.0 = apply @prediction(%self: $Classifier, %left: $Tree) -> <1 x 2 x f32>
+    %1.1 = apply @prediction(%self: $Classifier, %right: $Tree) -> <1 x 2 x f32>
     %1.2 = concatenate %1.0: <1 x 2 x f32>, %1.1: <1 x 2 x f32> along 1
     %w1 = extract #w1 from %self: $Classifier
     %1.4 = dot %1.2: <1 x 4 x f32>, %w1: <4 x 2 x f32>

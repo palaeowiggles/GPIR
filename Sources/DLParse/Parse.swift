@@ -906,15 +906,15 @@ extension Parser {
                 let args = try parseUseList(in: basicBlock,
                                             unless: { $0.kind == .punctuation(.rightParenthesis) })
                 try consume(.punctuation(.rightParenthesis))
-                let (allegedTy, _) = try parseTypeSignature()
-                /* TODO: Uncomment this when scanned prototypes have full types
-                guard typeSig == fn.type else {
-                    throw ParseError.typeMismatch(expected: fn.type, typeSigRange)
+                try consume(.punctuation(.rightArrow))
+                guard case let .function(_, retType) = fn.type.canonical else {
+                    throw ParseError.notFunctionType(tok.range)
                 }
-                 */
-                var use = fn.makeUse()
-                use.type = allegedTy
-                return .apply(use, args)
+                let (parsedRetType, typeSigRange) = try parseType()
+                guard parsedRetType == retType else {
+                    throw ParseError.typeMismatch(expected: retType, typeSigRange)
+                }
+                return .apply(fn.makeUse(), args)
             }
 
         /// 'allocateStack' <type> 'count' <num>
