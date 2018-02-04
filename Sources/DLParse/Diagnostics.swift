@@ -38,6 +38,8 @@ public enum ParseError : Error {
     case unexpectedToken(expected: String, Token)
     case noDimensionsInTensorShape(Token)
     case undefinedIdentifier(Token)
+    case undefinedIntrinsic(String, SourceRange)
+    case invalidReductionCombinator(Intrinsic.Type, SourceRange)
     case typeMismatch(expected: Type, SourceRange)
     case undefinedNominalType(Token)
     case redefinedIdentifier(Token)
@@ -89,6 +91,8 @@ public extension ParseError {
              let .invalidOperands(tok, _):
             return tok.startLocation
         case let .typeMismatch(_, range),
+             let .undefinedIntrinsic(_, range),
+             let .invalidReductionCombinator(_, range),
              let .notFunctionType(range),
              let .notInBasicBlock(range):
             return range.lowerBound
@@ -121,6 +125,12 @@ extension ParseError : CustomStringConvertible {
                 """
         case let .undefinedIdentifier(tok):
             desc += "undefined identifier \(tok)"
+        case let .undefinedIntrinsic(opcode, range):
+            desc += "undefined intrinsic \(opcode) at \(range)"
+        case let .invalidReductionCombinator(intrinsic, range):
+            desc += """
+                invalid reduction combinator "\(intrinsic.opcode)" at \(range)
+                """
         case let .typeMismatch(expected: ty, range):
             desc += "value at \(range) should have type \(ty)"
         case let .undefinedNominalType(tok):
@@ -223,6 +233,7 @@ extension Punctuation : CustomStringConvertible {
 extension Opcode : CustomStringConvertible {
     public var description: String {
         switch self {
+        case .builtin: return "builtin"
         case .literal: return "literal"
         case .branch: return "branch"
         case .conditional: return "condition"

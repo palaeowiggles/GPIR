@@ -21,6 +21,9 @@ import CoreTensor
 
 // MARK: - Core Instruction Set
 public enum InstructionKind {
+    /** Builtin intrinsic **/
+    case builtin(Intrinsic.Type, [Use])
+
     /** Control flow **/
     /// Unconditional branch to a basic block
     case branch(BasicBlock, [Use])
@@ -265,6 +268,9 @@ public extension InstructionKind {
     /// Infers and returns the type of the result of the instruction
     var type: Type {
         switch self {
+        case let .builtin(op, args):
+            return op.resultType(for: args)
+
         case let .literal(_, ty):
             return ty
 
@@ -326,6 +332,9 @@ public extension InstructionKind {
                 dtype = .bool
                 resultType = .tensor(s1.droppingDimensions(dimSet), .bool)
             case .numeric(_) where t1.isNumeric:
+                dtype = t1
+                resultType = .tensor(s1.droppingDimensions(dimSet), t1)
+            case .numericBuiltin(_) where t1.isNumeric:
                 dtype = t1
                 resultType = .tensor(s1.droppingDimensions(dimSet), t1)
             case let .function(f)
@@ -486,6 +495,9 @@ public extension InstructionKind {
             case let (.numeric(_), .tensor(_, t1)) where t1.isNumeric:
                 resultType = .tensor(outputShape, t1)
                 break
+            case let (.numericBuiltin(_), .tensor(_, t1)) where t1.isNumeric:
+                resultType = .tensor(outputShape, t1)
+                break
             case let (.function(f), .tensor(_, t1))
                 where f.type.unaliased == .function([.tensor([], t1)], .tensor([], t1)):
                 resultType = .tensor(outputShape, t1)
@@ -641,7 +653,8 @@ extension InstructionKind {
              let .release(op), let .retain(op), let .destroyStack(op),
              let .pop(_, from: op):
             return [op]
-        case .concatenate(let ops, _),
+        case .builtin(_, let ops),
+             .concatenate(let ops, _),
              .branch(_, let ops):
             return ops
         case let .conditional(cond, _, thenArgs, _, elseArgs):
@@ -687,6 +700,8 @@ public extension Literal {
 extension InstructionKind : Equatable {
     public static func == (lhs: InstructionKind, rhs: InstructionKind) -> Bool {
         switch (lhs, rhs) {
+        case let (.builtin(op1, args1), .builtin(op2, args2)):
+            return op1 == op2 && args1 == args2
         case let (.literal(x1, t1), .literal(x2, t2)):
             return x1 == x2 && t1 == t2
         case let (.numericUnary(op1, x1), .numericUnary(op2, y1)):
@@ -820,6 +835,8 @@ public extension InstructionKind {
     func substituting(_ new: Use, for old: Use) -> InstructionKind {
         let condSubst = {$0 == old ? new : $0}
         switch self {
+        case .builtin(let op, let args):
+            return .builtin(op, args.map(condSubst))
         case .branch(let dest, let args):
             return .branch(dest, args.map(condSubst))
         case let .conditional(cond, thenBB, thenArgs, elseBB, elseArgs):
@@ -1033,7 +1050,9 @@ public extension InstructionKind {
 // MARK: - Opcode decomposition
 
 public enum Opcode : Equatable {
+    case builtin
     case branch
+    case branchEnum
     case conditional
     case `return`
     case literal
@@ -1056,7 +1075,6 @@ public enum Opcode : Equatable {
     case bitCast
     case extract
     case insert
-    case branchEnum
     case apply
     case allocateStack
     case allocateHeap
@@ -1083,13 +1101,15 @@ public enum Opcode : Equatable {
     case select
 }
 
-/// Instruction ADT decomposition (opcodes, keywords, operands)
+/// Instruction ADT decomposition (opcodes, keywords, operands).
 /// - Note: When adding a new instruction, you should insert its
-/// corresponding opcode here
+/// corresponding opcode here.
 public extension InstructionKind {
     var opcode: Opcode {
         switch self {
+        case .builtin: return .builtin
         case .branch: return .branch
+        case .branchEnum: return .branchEnum
         case .conditional: return .conditional
         case .return: return .return
         case .literal: return .literal
@@ -1117,7 +1137,6 @@ public extension InstructionKind {
         case .bitCast: return .bitCast
         case .extract: return .extract
         case .insert: return .insert
-        case .branchEnum: return .branchEnum
         case .apply: return .apply
         case .allocateStack: return .allocateStack
         case .allocateHeap: return .allocateHeap

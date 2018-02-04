@@ -54,6 +54,7 @@ public enum VerificationError<Node : Verifiable> : Error {
     case invalidAdjointArguments(Use, Node)
     case invalidIndex(Use, Int, Node)
     case invalidIndices(Use, [ElementKey], Node)
+    case invalidIntrinsic(Intrinsic.Type, Node)
     case invalidLiteral(Type, Literal, Node)
     case invalidOffsets(Use, [ElementKey], Node)
     case invalidReductionDimensions([Int], Use, Node)
@@ -435,6 +436,14 @@ extension InstructionKind {
     /// Verifies instruction
     public func performVerification(in instruction: Instruction) throws {
         switch self {
+        case let .builtin(op, args):
+            guard IntrinsicRegistry.global.intrinsic(named: op.opcode) == op else {
+                throw VerificationError.invalidIntrinsic(op, instruction)
+            }
+            guard op.resultType(for: args).isValid else {
+                throw VerificationError.invalidType(instruction)
+            }
+
         case let .conditional(use, thenBB, thenArgs, elseBB, elseArgs):
             guard case .bool = use.type.unaliased else {
                 throw VerificationError.unexpectedType(use, .bool, instruction)
@@ -567,17 +576,18 @@ extension InstructionKind {
                 accShape = newShape
             }
 
-        case let .scan(.numeric(_), v1, dims):
-            guard case let .tensor(s1, t1) = v1.type.unaliased, t1.isNumeric else {
-                throw VerificationError.dataTypeNotNumeric(v1, instruction)
+        case let .scan(.boolean(_), v1, dims):
+            guard case let .tensor(s1, .bool) = v1.type.unaliased else {
+                throw VerificationError.unexpectedDataType(v1, .bool, instruction)
             }
             guard dims.count <= s1.rank, dims.forAll({ 0 <= $0 && $0 < s1.rank }), !dims.containsDuplicate else {
                 throw VerificationError.invalidReductionDimensions(dims, v1, instruction)
             }
 
-        case let .scan(.boolean(_), v1, dims):
-            guard case let .tensor(s1, .bool) = v1.type.unaliased else {
-                throw VerificationError.unexpectedDataType(v1, .bool, instruction)
+        case .scan(.numeric(_), let v1, let dims),
+             .scan(.numericBuiltin(_), let v1, let dims):
+            guard case let .tensor(s1, t1) = v1.type.unaliased, t1.isNumeric else {
+                throw VerificationError.dataTypeNotNumeric(v1, instruction)
             }
             guard dims.count <= s1.rank, dims.forAll({ 0 <= $0 && $0 < s1.rank }), !dims.containsDuplicate else {
                 throw VerificationError.invalidReductionDimensions(dims, v1, instruction)
@@ -595,18 +605,6 @@ extension InstructionKind {
                 throw VerificationError.invalidReductionDimensions(dims, v1, instruction)
             }
 
-        case let .reduce(.numeric(_), v1, initial, dims):
-            guard case let .tensor(s1, t1) = v1.type.unaliased, t1.isNumeric else {
-                throw VerificationError.dataTypeNotNumeric(v1, instruction)
-            }
-            guard dims.count <= s1.rank, dims.forAll({ 0 <= $0 && $0 < s1.rank }), !dims.containsDuplicate else {
-                throw VerificationError.invalidReductionDimensions(dims, v1, instruction)
-            }
-            /// Initial must be a scalar
-            guard case .scalar(t1) = initial.type.canonical else {
-                throw VerificationError.unexpectedShape(initial, .scalar, instruction)
-            }
-
         case let .reduce(.boolean(_), v1, initial, dims):
             guard case let .tensor(s1, .bool) = v1.type.unaliased else {
                 throw VerificationError.unexpectedDataType(v1, .bool, instruction)
@@ -616,6 +614,19 @@ extension InstructionKind {
             }
             /// Initial must be a scalar
             guard case .scalar(.bool) = initial.type.canonical else {
+                throw VerificationError.unexpectedShape(initial, .scalar, instruction)
+            }
+
+        case .reduce(.numeric(_), let v1, let initial, let dims),
+             .reduce(.numericBuiltin(_), let v1, let initial, let dims):
+            guard case let .tensor(s1, t1) = v1.type.unaliased, t1.isNumeric else {
+                throw VerificationError.dataTypeNotNumeric(v1, instruction)
+            }
+            guard dims.count <= s1.rank, dims.forAll({ 0 <= $0 && $0 < s1.rank }), !dims.containsDuplicate else {
+                throw VerificationError.invalidReductionDimensions(dims, v1, instruction)
+            }
+            /// Initial must be a scalar
+            guard case .scalar(t1) = initial.type.canonical else {
                 throw VerificationError.unexpectedShape(initial, .scalar, instruction)
             }
 
@@ -629,23 +640,6 @@ extension InstructionKind {
             }
             guard dims.count <= s1.rank, dims.forAll({ 0 <= $0 && $0 < s1.rank }), !dims.containsDuplicate else {
                 throw VerificationError.invalidReductionDimensions(dims, v1, instruction)
-            }
-            /// Initial must be a scalar
-            guard case .scalar(t1) = initial.type.canonical else {
-                throw VerificationError.unexpectedShape(initial, .scalar, instruction)
-            }
-
-        case let .reduceWindow(.numeric(_), v1, initial, dims, strides, padding: _):
-            guard case let .tensor(s1, t1) = v1.type.unaliased, t1.isNumeric else {
-                throw VerificationError.dataTypeNotNumeric(v1, instruction)
-            }
-            /// Window must have same rank as operand, window dims must be positive
-            guard dims.count <= s1.rank, dims.forAll({ $0 > 0 }) else {
-                throw VerificationError.invalidReductionDimensions(dims, v1, instruction)
-            }
-            /// Strides must be greater than one
-            guard strides.forAll({ $0 >= 1 }) else {
-                throw VerificationError.windowInvalidStrides(strides, instruction)
             }
             /// Initial must be a scalar
             guard case .scalar(t1) = initial.type.canonical else {
@@ -666,6 +660,24 @@ extension InstructionKind {
             }
             /// Initial must be a scalar
             guard case .scalar(.bool) = initial.type.canonical else {
+                throw VerificationError.unexpectedShape(initial, .scalar, instruction)
+            }
+
+        case .reduceWindow(.numeric(_), let v1, let initial, let dims, let strides, padding: _),
+             .reduceWindow(.numericBuiltin(_), let v1, let initial, let dims, let strides, padding: _):
+            guard case let .tensor(s1, t1) = v1.type.unaliased, t1.isNumeric else {
+                throw VerificationError.dataTypeNotNumeric(v1, instruction)
+            }
+            /// Window must have same rank as operand, window dims must be positive
+            guard dims.count <= s1.rank, dims.forAll({ $0 > 0 }) else {
+                throw VerificationError.invalidReductionDimensions(dims, v1, instruction)
+            }
+            /// Strides must be greater than one
+            guard strides.forAll({ $0 >= 1 }) else {
+                throw VerificationError.windowInvalidStrides(strides, instruction)
+            }
+            /// Initial must be a scalar
+            guard case .scalar(t1) = initial.type.canonical else {
                 throw VerificationError.unexpectedShape(initial, .scalar, instruction)
             }
 

@@ -289,6 +289,21 @@ public enum SelectOp : TensorOp {
 /// Reduction combinator
 public enum ReductionCombinator : Equatable {
     case function(Use)
-    case numeric(NumericBinaryOp)
     case boolean(BooleanBinaryOp)
+    case numeric(NumericBinaryOp)
+    case numericBuiltin(NumericBinaryIntrinsic.Type)
+
+    public static func ==(lhs: ReductionCombinator, rhs: ReductionCombinator) -> Bool {
+        switch (lhs, rhs) {
+        case (.function(let f1), .function(let f2)):
+            return f1 == f2
+        case (.boolean(let op1), .boolean(let op2)):
+            return op1 == op2
+        case (.numeric(let op1), .numeric(let op2)):
+            return op1 == op2
+        case (.numericBuiltin(let op1), .numericBuiltin(let op2)):
+            return op1.self == op2.self
+        default: return false
+        }
+    }
 }
