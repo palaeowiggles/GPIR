@@ -48,6 +48,7 @@ public enum ParseError : Error {
     case invalidVariableIndex(Token)
     case invalidFunctionIndex(Token)
     case variableAfterFunction(Token)
+    case typeDeclarationNotBeforeValues(Token)
     case notFunctionType(SourceRange)
     case notInBasicBlock(SourceRange)
     case invalidAttributeArguments(SourceLocation)
@@ -94,6 +95,7 @@ public extension ParseError {
              let .invalidVariableIndex(tok),
              let .invalidFunctionIndex(tok),
              let .variableAfterFunction(tok),
+             let .typeDeclarationNotBeforeValues(tok),
              let .declarationCannotHaveBody(_, body: tok),
              let .cannotNameVoidValue(tok),
              let .invalidOperands(tok, _):
@@ -154,6 +156,8 @@ extension ParseError : CustomStringConvertible {
             desc += "anonymous function \(tok) has invalid index"
         case let .variableAfterFunction(tok):
             desc += "variable \(tok) not declared before functions"
+        case let .typeDeclarationNotBeforeValues(tok):
+            desc += "type \(tok) not declared before value"
         case let .notFunctionType(range):
             desc += "type signature at \(range) is not a function type"
         case let .notInBasicBlock(range):

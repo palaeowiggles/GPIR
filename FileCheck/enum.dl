@@ -11,18 +11,6 @@ enum $TestEnum1 {
     ?baz($TestEnum1, <1 x 3 x 4 x f64>, $TestEnum1)
 }
 
-var @enum1: $TestEnum1
-
-func @initialize_enum1: () -> () {
-'entry():
-    %0.0 = literal undefined: <1 x 3 x 4 x f64>
-    %0.1 = literal ?foo(123: i32, 3.14: f32): $TestEnum1
-    %0.2 = literal ?bar(): $TestEnum1
-    %0.3 = literal ?baz(%0.1: $TestEnum1, %0.0: <1 x 3 x 4 x f64>, %0.2: $TestEnum1): $TestEnum1
-    store %0.3: $TestEnum1 to @enum1: *$TestEnum1
-    return
-}
-
 enum $Tree {
     ?word(<1 x f32>)
     ?combine($Tree, <2 x f32>, $Tree)
@@ -33,6 +21,18 @@ struct $Classifier {
     #w2: <1 x 2 x f32>
     #b1: <1 x f32>
     #b2: <1 x f32>
+}
+
+var @enum1: $TestEnum1
+
+func @initialize_enum1: () -> () {
+'entry():
+    %0.0 = literal undefined: <1 x 3 x 4 x f64>
+    %0.1 = literal ?foo(123: i32, 3.14: f32): $TestEnum1
+    %0.2 = literal ?bar(): $TestEnum1
+    %0.3 = literal ?baz(%0.1: $TestEnum1, %0.0: <1 x 3 x 4 x f64>, %0.2: $TestEnum1): $TestEnum1
+    store %0.3: $TestEnum1 to @enum1: *$TestEnum1
+    return
 }
 
 func @prediction: ($Classifier, $Tree) -> <1 x 2 x f32> {

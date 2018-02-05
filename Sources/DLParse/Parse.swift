@@ -1594,12 +1594,21 @@ public extension Parser {
         while let tok = currentToken {
             switch tok.kind {
             case .keyword(.type):
+                guard module.isEmpty, module.variables.isEmpty else {
+                    throw ParseError.typeDeclarationNotBeforeValues(tok)
+                }
                 _ = try parseTypeAlias(in: module, isDefinition: false)
 
             case .keyword(.struct):
+                guard module.isEmpty, module.variables.isEmpty else {
+                    throw ParseError.typeDeclarationNotBeforeValues(tok)
+                }
                 _ = try parseStruct(in: module, isDefinition: false)
 
             case .keyword(.enum):
+                guard module.isEmpty, module.variables.isEmpty else {
+                    throw ParseError.typeDeclarationNotBeforeValues(tok)
+                }
                 _ = try parseEnum(in: module, isDefinition: false)
 
             case .keyword(.func), .attribute(_), .punctuation(.leftSquareBracket):
