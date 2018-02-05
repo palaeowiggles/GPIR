@@ -698,7 +698,7 @@ public extension Literal {
 // MARK: - Naming
 
 public extension Instruction {
-    public var printedName: String? {
+    var printedName: String? {
         return name ??
             (type.isVoid ? nil : "\(parent.indexInParent).\(indexInParent)")
     }

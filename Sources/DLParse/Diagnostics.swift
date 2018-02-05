@@ -215,8 +215,9 @@ extension LexicalError : CustomStringConvertible {
             desc += "expecting identifier name"
         case .invalidAnonymousLocalIdentifier(_):
             desc += """
-                invalid anonymous local identifier. It should look like \
-                %<bb_index>.<inst_index|arg_index>, e.g. %0.1 or %0^1
+                invalid anonymous local identifier. It should look either like \
+                %<bb_index>.<inst_index> or %<bb_index>^<arg_index>, e.g. \
+                %0.1 or %0^1
                 """
         case .invalidBasicBlockIndex(_):
             desc += """

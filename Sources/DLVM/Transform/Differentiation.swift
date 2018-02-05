@@ -229,7 +229,7 @@ fileprivate extension Differentiation {
                 guard let argAdjoint = context.adjoint(for: %adjoint[0].arguments[i]) else {
                     fatalError("""
                         Adjoint not found for argument \(adjoint[0].arguments[i]) \
-                        in function \(adjoint.printedName)
+                        in function \(adjoint.printedName).
                         """)
                 }
                 return argAdjoint
