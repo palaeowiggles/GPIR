@@ -28,17 +28,17 @@ open class LiteralBroadcastingPromotion : TransformPass {
             case .numericBinary, .booleanBinary, .compare: break
             default: continue
             }
-            for var operand in inst.operands {
+            for operand in inst.operands {
                 /// Operand must have tensor type
                 guard case let .tensor(_, dt) = operand.type else {
                     continue
                 }
                 /// Operand must be a literal or literal instruction
                 switch operand {
-                case .literal(_, .scalar(_)):
+                case let .literal(_, .scalar(sLit)):
+                    let newOperand: Use = .literal(.scalar(dt), .scalar(sLit))
+                    inst.substitute(newOperand, for: operand)
                     changed = true
-                    operand.type = .scalar(dt)
-                    inst.substitute(operand, for: operand)
                 case .definition(.instruction(let i)):
                     guard case let .literal(lit, ty) = i.kind,
                         case let .tensor(_, dt) = ty else {

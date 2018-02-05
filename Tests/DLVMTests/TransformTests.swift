@@ -276,8 +276,8 @@ class TransformTests : XCTestCase {
                 branch 'then_join(0: i32)
             'nested_else():
                 branch 'then_join(1: i32)
-            'then_join(%exit_value_0: i32):
-                branch 'exit(%exit_value_0: i32)
+            'then_join(%5^0: i32):
+                branch 'exit(%5^0: i32)
             'exit(%exit_value: i32):
                 return %exit_value: i32
             }

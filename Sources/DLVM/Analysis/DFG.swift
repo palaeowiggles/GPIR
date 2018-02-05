@@ -112,7 +112,7 @@ open class DataFlowGraphAnalysis: AnalysisPass {
         var userGraph = DataFlowGraph()
         for inst in body.instructions {
             for use in inst.operands {
-                if let def = use.value as? Definition {
+                if case let .definition(def) = use {
                     userGraph.insert(inst, for: def)
                 }
             }

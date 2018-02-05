@@ -172,7 +172,9 @@ private extension Parser {
         }
     }
 
-    func parseIdentifier(ofKind kind: IdentifierKind, isDefinition: Bool = false) throws -> (String, Token) {
+    func parseIdentifier(
+        ofKind kind: IdentifierKind, isDefinition: Bool = false
+    ) throws -> (String, Token) {
         let tok = try consumeOrDiagnose("an identifier")
         let name: String
         switch tok.kind {
@@ -247,13 +249,15 @@ private extension Parser {
 
     /// Parse one or more with optional backtracking
     /// - Note: In the first closure, return `nil` to backtrack
-    func parseMany<T>(_ parseElement: () throws -> T?, unless: ((Token) -> Bool)? = nil,
-                      separatedBy parseSeparator: () throws -> ()) rethrows -> [T] {
+    func parseMany<T>(
+        _ parseElement: () throws -> T?, unless: ((Token) -> Bool)? = nil,
+        separatedBy parseSeparator: () throws -> ()
+    ) rethrows -> [T] {
         guard let tok = currentToken else { return [] }
         if let unless = unless, unless(tok) { return [] }
         guard let first = try withBacktracking(parseElement) else { return [] }
         var elements: [T] = []
-        while let _ = withBacktracking({try? parseSeparator()}),
+        while let _ = withBacktracking({ try? parseSeparator() }),
             let result = try withBacktracking(parseElement) {
             elements.append(result)
         }
@@ -265,7 +269,9 @@ private extension Parser {
 
 extension Parser {
     /// Parse uses separated by ','
-    func parseUseList(in basicBlock: BasicBlock?, unless: ((Token) -> Bool)? = nil) throws -> [Use] {
+    func parseUseList(
+        in basicBlock: BasicBlock?, unless: ((Token) -> Bool)? = nil
+    ) throws -> [Use] {
         return try parseMany({ try parseUse(in: basicBlock).0 },
                              unless: unless,
                              separatedBy: { try self.consumeWrappablePunctuation(.comma) })
@@ -398,7 +404,8 @@ extension Parser {
                 default:
                     return nil
                 }
-        })
+            }
+        )
     }
 
     func parseReductionCombinator(in basicBlock: BasicBlock?) throws -> ReductionCombinator {
@@ -546,8 +553,28 @@ extension Parser {
             guard type == use.type else {
                 throw ParseError.typeMismatch(expected: use.type, range)
             }
-        /// Anonymous local identifier in a basic block
-        case let .anonymousIdentifier(bbIndex, instIndex):
+        /// Anonymous global identifier
+        case let .anonymousGlobal(index):
+            guard let bb = basicBlock else {
+                throw ParseError.anonymousIdentifierNotInLocal(tok)
+            }
+            consumeToken()
+            let module = bb.parent.parent
+            if index < module.variables.count {
+                let variable = module.variables[index]
+                use = %variable
+            } else {
+                let funcIndex = index - module.variables.count
+                let function = module[funcIndex]
+                use = %function
+            }
+            let (type, typeSigRange) = try parseTypeSignature()
+            range = tok.startLocation..<typeSigRange.upperBound
+            guard type == use.type else {
+                throw ParseError.typeMismatch(expected: use.type, range)
+            }
+        /// Anonymous instruction in a basic block
+        case let .anonymousInstruction(bbIndex, instIndex):
             guard let bb = basicBlock else {
                 throw ParseError.anonymousIdentifierNotInLocal(tok)
             }
@@ -557,11 +584,11 @@ extension Parser {
             /// - BB referred to must precede the current BB
             /// - Instruction referred to must precede the current instruction
             guard bbIndex <= function.endIndex else {
-                throw ParseError.invalidAnonymousIdentifierIndex(tok)
+                throw ParseError.invalidInstructionIndex(tok)
             }
             let refBB = bbIndex == function.endIndex ? bb : function[bbIndex]
             guard refBB.indices.contains(instIndex) else {
-                throw ParseError.invalidAnonymousIdentifierIndex(tok)
+                throw ParseError.invalidInstructionIndex(tok)
             }
             let inst = refBB[instIndex]
             /// This value cannot be named, or have void type
@@ -570,6 +597,34 @@ extension Parser {
             }
             /// Now we can use this value
             use = %inst
+            let (type, typeSigRange) = try parseTypeSignature()
+            range = tok.startLocation..<typeSigRange.upperBound
+            guard type == use.type else {
+                throw ParseError.typeMismatch(expected: use.type, range)
+            }
+        /// Anonymous argument in a basic block
+        case let .anonymousArgument(bbIndex, argIndex):
+            guard let bb = basicBlock else {
+                throw ParseError.anonymousIdentifierNotInLocal(tok)
+            }
+            consumeToken()
+            let function = bb.parent
+            /// Criteria for identifier index:
+            /// - BB referred to must precede the current BB
+            guard bbIndex <= function.endIndex else {
+                throw ParseError.invalidArgumentIndex(tok)
+            }
+            let refBB = bbIndex == function.endIndex ? bb : function[bbIndex]
+            guard refBB.arguments.indices.contains(argIndex) else {
+                throw ParseError.invalidArgumentIndex(tok)
+            }
+            let arg = refBB.arguments[argIndex]
+            /// This value cannot be named, or have void type
+            guard arg.name == nil, arg.type != .void else {
+                throw ParseError.undefinedIdentifier(tok)
+            }
+            /// Now we can use this value
+            use = %arg
             let (type, typeSigRange) = try parseTypeSignature()
             range = tok.startLocation..<typeSigRange.upperBound
             guard type == use.type else {
@@ -599,7 +654,6 @@ extension Parser {
             consumeToken()
             return opcode
         }
-        /// - todo: parse instruction kind
         switch opcode {
         /// 'builtin' "<op>" '(' (<val> (',' <val>)*)? ')'
         case .builtin:
@@ -627,7 +681,16 @@ extension Parser {
 
         /// 'branch' <bb> '(' (<val> (',' <val>)*)? ')'
         case .branch:
-            let (bbName, bbTok) = try parseIdentifier(ofKind: .basicBlock)
+            let bbTok = try consumeOrDiagnose("a basic block identifier")
+            let bbName: String
+            switch bbTok.kind {
+            case let .identifier(.basicBlock, name):
+                bbName = name
+            case let .anonymousBasicBlock(index):
+                bbName = String(index)
+            default:
+                throw ParseError.unexpectedToken(expected: "a basic block identifier", bbTok)
+            }
             guard let bb = environment.basicBlocks[bbName] else {
                 throw ParseError.undefinedIdentifier(bbTok)
             }
@@ -643,7 +706,16 @@ extension Parser {
             let (cond, _) = try parseUse(in: basicBlock)
             /// Then
             try consume(.keyword(.then))
-            let (thenBBName, thenBBTok) = try parseIdentifier(ofKind: .basicBlock)
+            let thenBBTok = try consumeOrDiagnose("a basic block identifier")
+            let thenBBName: String
+            switch thenBBTok.kind {
+            case let .identifier(.basicBlock, name):
+                thenBBName = name
+            case let .anonymousBasicBlock(index):
+                thenBBName = String(index)
+            default:
+                throw ParseError.unexpectedToken(expected: "a basic block identifier", thenBBTok)
+            }
             guard let thenBB = environment.basicBlocks[thenBBName] else {
                 throw ParseError.undefinedIdentifier(thenBBTok)
             }
@@ -653,7 +725,16 @@ extension Parser {
             try consume(.punctuation(.rightParenthesis))
             /// Else
             try consume(.keyword(.else))
-            let (elseBBName, elseBBTok) = try parseIdentifier(ofKind: .basicBlock)
+            let elseBBTok = try consumeOrDiagnose("a basic block identifier")
+            let elseBBName: String
+            switch elseBBTok.kind {
+            case let .identifier(.basicBlock, name):
+                elseBBName = name
+            case let .anonymousBasicBlock(index):
+                elseBBName = String(index)
+            default:
+                throw ParseError.unexpectedToken(expected: "a basic block identifier", elseBBTok)
+            }
             guard let elseBB = environment.basicBlocks[elseBBName] else {
                 throw ParseError.undefinedIdentifier(elseBBTok)
             }
@@ -878,7 +959,16 @@ extension Parser {
                 }
                 try consume(.keyword(.case))
                 let caseName = try parseIdentifier(ofKind: .enumCase).0
-                let (bbName, bbTok) = try parseIdentifier(ofKind: .basicBlock)
+                let bbTok = try consumeOrDiagnose("a basic block identifier")
+                let bbName: String
+                switch bbTok.kind {
+                case let .identifier(.basicBlock, name):
+                    bbName = name
+                case let .anonymousBasicBlock(index):
+                    bbName = String(index)
+                default:
+                    throw ParseError.unexpectedToken(expected: "a basic block identifier", bbTok)
+                }
                 guard let bb = environment.basicBlocks[bbName] else {
                     throw ParseError.undefinedIdentifier(bbTok)
                 }
@@ -889,7 +979,18 @@ extension Parser {
         /// 'apply' <val> '(' <val>+ ')'
         case .apply:
             return try withPeekedToken("a function identifier") { tok in
-                guard case let .identifier(kind, name) = tok.kind else { return nil }
+                let kind: IdentifierKind
+                let name: String
+                switch tok.kind {
+                case let .identifier(funcKind, funcName):
+                    kind = funcKind
+                    name = funcName
+                case let .anonymousGlobal(index):
+                    kind = .global
+                    name = String(index)
+                default:
+                    return nil
+                }
                 consumeToken()
                 let fn: Value
                 switch kind {
@@ -1084,14 +1185,14 @@ extension Parser {
             let inst = Instruction(name: name, kind: kind, parent: basicBlock)
             environment.locals[name] = inst
             return inst
-        case let .anonymousIdentifier(bbIndex, instIndex):
+        case let .anonymousInstruction(bbIndex, instIndex):
             /// Check BB index and instruction index
             /// - BB index must equal the current BB index
             /// - Instruction index must equal the next instruction index,
             ///   i.e. the current instruction count
             guard bbIndex == basicBlock.parent.count, // BB hasn't been added to function
                 instIndex == basicBlock.endIndex // Inst hasn't been added to BB
-                else { throw ParseError.invalidAnonymousIdentifierIndex(tok) }
+                else { throw ParseError.invalidInstructionIndex(tok) }
             consumeToken()
             try consumeWrappablePunctuation(.equal)
             let kind = try parseKind(isNamed: true)
@@ -1117,9 +1218,22 @@ extension Parser {
 
     func parseBasicBlock(in function: Function) throws -> BasicBlock? {
         /// Parse basic block header.
-        guard let nameTok = currentToken,
-            case .identifier(.basicBlock, let name) = nameTok.kind else {
+        guard let nameTok = currentToken else { return nil }
+        let name: String
+        switch nameTok.kind {
+        case let .identifier(.basicBlock, bbName):
+            name = bbName
+        case let .anonymousBasicBlock(index):
+            /// Check basic block index
+            /// - bb index must equal the next bb index,
+            ///   i.e. the current bb count.
+            guard index == function.count
+                else { throw ParseError.invalidBasicBlockIndex(nameTok) }
+            name = String(index)
+        case .punctuation(.rightCurlyBracket):
             return nil
+        default:
+            throw ParseError.unexpectedToken(expected: "a basic block identifier", nameTok)
         }
         consumeToken()
         try consumeWrappablePunctuation(.leftParenthesis)
@@ -1129,10 +1243,13 @@ extension Parser {
         try consumeOneOrMore(.newLine)
         /// Retrieve previously added BB during scanning.
         guard let bb = environment.basicBlocks[name] else {
-            preconditionFailure("Should've been added during the symbol scanning stage")
+            preconditionFailure("""
+                Basic block should have been added during the symbol scanning \
+                stage
+                """)
         }
-        /// Check if this prototype is already processed. If so, it's a redefinition
-        /// of this BB.
+        /// Check if this prototype is already processed. If so, it's a
+        /// redefinition of this BB.
         guard !environment.processedBasicBlocks.contains(bb) else {
             throw ParseError.redefinedIdentifier(nameTok)
         }
@@ -1143,7 +1260,9 @@ extension Parser {
             let arg = Argument(name: name, type: type, parent: bb)
             bb.arguments.append(arg)
             /// Insert arguments into symbol table.
-            environment.locals[arg.name] = arg
+            if let name = arg.name {
+                environment.locals[name] = arg
+            }
         }
         /// Parse instructions.
         while let inst = try parseInstruction(in: bb) {
@@ -1158,7 +1277,16 @@ extension Parser {
             switch tok.kind {
             case .keyword(.adjoint):
                 consumeToken()
-                let (fnName, tok) = try parseIdentifier(ofKind: .global)
+                let fnName: String
+                let tok = try consumeOrDiagnose("a function identifier")
+                switch tok.kind {
+                case let .identifier(.global, name):
+                    fnName = name
+                case let .anonymousGlobal(index):
+                    fnName = String(index)
+                default:
+                    return nil
+                }
                 guard let fn = environment.globals[fnName] as? Function else {
                     throw ParseError.undefinedIdentifier(tok)
                 }
@@ -1228,7 +1356,21 @@ extension Parser {
         }
         /// Parse main function declaration/definition.
         let funcTok = try consume(.keyword(.func))
-        let (name, nameTok) = try parseIdentifier(ofKind: .global)
+        let nameTok = try consumeOrDiagnose("a function identifier")
+        let name: String
+        switch nameTok.kind {
+        case let .identifier(.global, funcName):
+            name = funcName
+        case let .anonymousGlobal(index):
+            /// Check global index
+            /// - Function index must equal the next function index,
+            ///   i.e. the sum of current variable and function counts
+            guard index == module.variables.count + module.count
+                else { throw ParseError.invalidFunctionIndex(nameTok) }
+            name = String(index)
+        default:
+            throw ParseError.unexpectedToken(expected: "a function identifier", nameTok)
+        }
         let (type, typeSigRange) = try parseTypeSignature()
         /// Verify that the type signature is a function type.
         guard case let .function(args, ret) = type.canonical else {
@@ -1236,7 +1378,9 @@ extension Parser {
         }
         /// Retrieve previous added function during scanning.
         guard let function = environment.globals[name] as? Function else {
-            preconditionFailure("Should've been added during the symbol scanning stage")
+            preconditionFailure("""
+                Function should have been added during the symbol scanning stage
+                """)
         }
         /// Check if this prototype is already processed. If so, it's a redefinition
         /// of this function.
@@ -1257,13 +1401,22 @@ extension Parser {
                 let (tok0, tok1) = (restTokens[start], restTokens[start+1])
                 /// End of function, break
                 if tok0.kind == .punctuation(.rightCurlyBracket) { break }
-                if case (.newLine, .identifier(.basicBlock, let name)) = (tok0.kind, tok1.kind) {
-                    let proto = BasicBlock(name: name, arguments: [], parent: function)
-                    environment.basicBlocks[name] = proto
-                    restTokens.removeFirst(2)
+                let name: String
+                var isAnonymous = false
+                switch (tok0.kind, tok1.kind) {
+                case let (.newLine, .identifier(.basicBlock, bbName)):
+                    name = bbName
+                case let (.newLine, .anonymousBasicBlock(index)):
+                    name = String(index)
+                    isAnonymous = true
+                default:
+                    consumeToken()
                     continue
                 }
-                consumeToken()
+                restTokens.removeFirst(2)
+                let proto = BasicBlock(name: isAnonymous ? nil : name,
+                                       arguments: [], parent: function)
+                environment.basicBlocks[name] = proto
             }
         }
         /// Parse definition in `{...}` when it's not a declaration.
@@ -1292,9 +1445,30 @@ extension Parser {
 
     func parseVariable(in module: Module) throws -> Variable {
         try consume(.keyword(.var))
-        let (name, _) = try parseIdentifier(ofKind: .global, isDefinition: true)
+        let tok = try consumeOrDiagnose("a variable identifier")
+        /// Variable must be declared before all functions.
+        guard module.isEmpty else {
+            throw ParseError.variableAfterFunction(tok)
+        }
+        let name: String
+        var isAnonymous = false
+        switch tok.kind {
+        case let .identifier(.global, varName):
+            name = varName
+        case let .anonymousGlobal(index):
+            /// Check global index
+            /// - Variable index must equal the next variable index,
+            ///   i.e. the current variable count
+            guard index == module.variables.count // Variable hasn't been added to module
+                else { throw ParseError.invalidVariableIndex(tok) }
+            name = String(index)
+            isAnonymous = true
+        default:
+            throw ParseError.unexpectedToken(expected: "a variable identifier", tok)
+        }
         let (type, _) = try parseTypeSignature()
-        let variable = Variable(name: name, valueType: type)
+        let variable = Variable(name: isAnonymous ? nil : name,
+                                valueType: type, parent: module)
         environment.globals[name] = variable
         return variable
     }
@@ -1422,19 +1596,28 @@ public extension Parser {
             while restTokens.count >= 3 {
                 let start = restTokens.startIndex
                 let (tok0, tok1, tok2) = (restTokens[start], restTokens[start+1], restTokens[start+2])
-                if case (.newLine, .keyword(.func), .identifier(.global, let name)) = (tok0.kind, tok1.kind, tok2.kind) {
-                    restTokens.removeFirst(3)
-                    let (type, typeSigRange) = try parseTypeSignature()
-                    /// Verify that the type signature is a function type.
-                    guard case let .function(argTypes, retType) = type.canonical else {
-                        throw ParseError.notFunctionType(typeSigRange)
-                    }
-                    let proto = Function(name: name, argumentTypes: argTypes,
-                                         returnType: retType, parent: module)
-                    environment.globals[name] = proto
+                let name: String
+                var isAnonymous = false
+                switch (tok0.kind, tok1.kind, tok2.kind) {
+                case let (.newLine, .keyword(.func), .identifier(.global, funcName)):
+                    name = funcName
+                case let (.newLine, .keyword(.func), .anonymousGlobal(index)):
+                    name = String(index)
+                    isAnonymous = true
+                default:
+                    consumeToken()
                     continue
                 }
-                consumeToken()
+                restTokens.removeFirst(3)
+                let (type, typeSigRange) = try parseTypeSignature()
+                /// Verify that the type signature is a function type.
+                guard case let .function(argTypes, retType) = type.canonical else {
+                    throw ParseError.notFunctionType(typeSigRange)
+                }
+                let proto = Function(name: isAnonymous ? nil : name,
+                                     argumentTypes: argTypes,
+                                     returnType: retType, parent: module)
+                environment.globals[name] = proto
             }
         }
 
@@ -1443,12 +1626,21 @@ public extension Parser {
         while let tok = currentToken {
             switch tok.kind {
             case .keyword(.type):
+                guard module.isEmpty, module.variables.isEmpty else {
+                    throw ParseError.typeDeclarationNotBeforeValues(tok)
+                }
                 _ = try parseTypeAlias(in: module, isDefinition: false)
 
             case .keyword(.struct):
+                guard module.isEmpty, module.variables.isEmpty else {
+                    throw ParseError.typeDeclarationNotBeforeValues(tok)
+                }
                 _ = try parseStruct(in: module, isDefinition: false)
 
             case .keyword(.enum):
+                guard module.isEmpty, module.variables.isEmpty else {
+                    throw ParseError.typeDeclarationNotBeforeValues(tok)
+                }
                 _ = try parseEnum(in: module, isDefinition: false)
 
             case .keyword(.func), .attribute(_), .punctuation(.leftSquareBracket):
@@ -1461,7 +1653,7 @@ public extension Parser {
 
             default:
                 throw ParseError.unexpectedToken(
-                    expected: "a type alias, a struct, an enum, or a function", tok
+                    expected: "a type alias, a struct, an enum, a global variable, or a function", tok
                 )
             }
             if isEOF { break }

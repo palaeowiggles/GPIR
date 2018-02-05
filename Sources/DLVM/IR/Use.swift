@@ -24,21 +24,11 @@ public indirect enum Use : Equatable {
 
 public extension Use {
     var type: Type {
-        get {
-            switch self {
-            case let .literal(t, _):
-                return t
-            case let .definition(x):
-                return x.type
-            }
-        }
-        set(newType) {
-            switch self {
-            case let .literal(_, x):
-                self = .literal(newType, x)
-            case let .definition(x):
-                self = .definition(x)
-            }
+        switch self {
+        case let .literal(t, _):
+            return t
+        case let .definition(x):
+            return x.type
         }
     }
 
@@ -49,12 +39,13 @@ public extension Use {
     var value: Value {
         switch self {
         case let .literal(ty, lit): return LiteralValue(type: ty, literal: lit)
-        case let .definition(def): return def
+        case let .definition(def): return def.value
         }
     }
 
     var definition: Definition? {
-        return value as? Definition
+        guard case let .definition(def) = self else { return nil }
+        return def
     }
 
     var name: String? {
