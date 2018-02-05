@@ -178,6 +178,10 @@ public extension IRBuilder {
 /// for common instructions. For full power, please use `buildInstruction`
 /// with the algebraic data type `InstructionKind`
 public extension IRBuilder {
+    func builtin(_ opcode: Intrinsic.Type, _ arguments: [Use]) -> Instruction {
+        return buildInstruction(.builtin(opcode, arguments))
+    }
+
     @discardableResult
     func branch(_ destination: BasicBlock, _ arguments: [Use]) -> Instruction {
         return buildInstruction(.branch(destination, arguments))

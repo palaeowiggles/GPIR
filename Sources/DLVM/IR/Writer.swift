@@ -152,8 +152,9 @@ extension ReductionCombinator : TextOutputStreamable {
     public func write<Target>(to target: inout Target) where Target : TextOutputStream {
         switch self {
         case let .function(f): f.write(to: &target)
-        case let .numeric(op): String(describing: op).write(to: &target)
         case let .boolean(op): String(describing: op).write(to: &target)
+        case let .numeric(op): String(describing: op).write(to: &target)
+        case let .numericBuiltin(op): "\(op.description)".write(to: &target)
         }
     }
 }
@@ -161,10 +162,19 @@ extension ReductionCombinator : TextOutputStreamable {
 extension InstructionKind : TextOutputStreamable {
     public func write<Target : TextOutputStream>(to target: inout Target) {
         switch self {
+        case let .builtin(op, args):
+            target.write("""
+                \(op.description)(\(args.joinedDescription)) \
+                -> \(op.resultType(for: args))
+                """)
         case let .branch(bb, args):
             target.write("branch '\(bb.printedName)(\(args.joinedDescription))")
         case let .conditional(op, thenBB, thenArgs, elseBB, elseArgs):
-            target.write("conditional \(op) then '\(thenBB.printedName)(\(thenArgs.joinedDescription)) else '\(elseBB.printedName)(\(elseArgs.joinedDescription))")
+            target.write("""
+                conditional \(op) \
+                then '\(thenBB.printedName)(\(thenArgs.joinedDescription)) \
+                else '\(elseBB.printedName)(\(elseArgs.joinedDescription))
+                """)
         case let .return(op):
             target.write("return")
             if let op = op {
@@ -233,7 +243,11 @@ extension InstructionKind : TextOutputStreamable {
         case let .shapeCast(op, s):
             target.write("shapeCast \(op) to \(s)")
         case let .apply(f, args):
-            target.write("apply \(f.identifier)(\(args.joinedDescription)): \(f.type)")
+            var retType: Type = .invalid
+            if case let .function(_, fRetType) = f.type {
+                retType = fRetType
+            }
+            target.write("apply \(f.identifier)(\(args.joinedDescription)) -> \(retType)")
         case .createStack:
             target.write("createStack")
         case let .destroyStack(stack):

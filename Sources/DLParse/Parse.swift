@@ -220,12 +220,12 @@ private extension Parser {
         return tok
     }
 
-    func consumeStringLiteral() throws -> String {
+    func consumeStringLiteral() throws -> (String, SourceRange) {
         let tok = try consumeOrDiagnose("a string literal")
         guard case let .stringLiteral(str) = tok.kind else {
             throw ParseError.unexpectedToken(expected: "a string literal", tok)
         }
-        return str
+        return (str, tok.range)
     }
 
     func consumeAnyNewLines() {
@@ -413,6 +413,16 @@ extension Parser {
             a function or an associative operator
             """, { tok in
                 switch tok.kind {
+                case .opcode(.builtin):
+                    consumeToken()
+                    let (opcode, range) = try consumeStringLiteral()
+                    guard let intrinsic = IntrinsicRegistry.global.intrinsic(named: opcode) else {
+                        throw ParseError.undefinedIntrinsic(opcode, range)
+                    }
+                    guard let numericBuiltin = intrinsic as? NumericBinaryIntrinsic.Type else {
+                        throw ParseError.invalidReductionCombinator(intrinsic, range)
+                    }
+                    return .numericBuiltin(numericBuiltin)
                 case .identifier(_):
                     return try .function(parseUse(in: basicBlock).0)
                 case .opcode(.numericBinaryOp(let op)):
@@ -645,6 +655,24 @@ extension Parser {
             return opcode
         }
         switch opcode {
+        /// 'builtin' "<op>" '(' (<val> (',' <val>)*)? ')'
+        case .builtin:
+            let (opcode, range) = try consumeStringLiteral()
+            guard let intrinsic = IntrinsicRegistry.global.intrinsic(named: opcode) else {
+                throw ParseError.undefinedIntrinsic(opcode, range)
+            }
+            try consume(.punctuation(.leftParenthesis))
+            let args = try parseUseList(in: basicBlock,
+                                        unless: { $0.kind == .punctuation(.rightParenthesis) })
+            try consume(.punctuation(.rightParenthesis))
+            try consume(.punctuation(.rightArrow))
+            let (allegedType, typeRange) = try parseType()
+            let resultType = intrinsic.resultType(for: args)
+            guard allegedType == resultType else {
+                throw ParseError.typeMismatch(expected: resultType, typeRange)
+            }
+            return .builtin(intrinsic, args)
+
         /// 'literal' <literal> ':' <type>
         case .literal:
             let (lit, _) = try parseLiteral(in: basicBlock)
@@ -979,9 +1007,13 @@ extension Parser {
                 let args = try parseUseList(in: basicBlock,
                                             unless: { $0.kind == .punctuation(.rightParenthesis) })
                 try consume(.punctuation(.rightParenthesis))
-                let (typeSig, typeSigRange) = try parseTypeSignature()
-                guard typeSig == fn.type else {
-                    throw ParseError.typeMismatch(expected: fn.type, typeSigRange)
+                try consume(.punctuation(.rightArrow))
+                guard case let .function(_, retType) = fn.type.canonical else {
+                    throw ParseError.notFunctionType(tok.range)
+                }
+                let (parsedRetType, typeSigRange) = try parseType()
+                guard parsedRetType == retType else {
+                    throw ParseError.typeMismatch(expected: retType, typeSigRange)
                 }
                 return .apply(fn.makeUse(), args)
             }
@@ -1521,7 +1553,7 @@ public extension Parser {
     func parseModule() throws -> Module {
         consumeAnyNewLines()
         try consume(.keyword(.module))
-        let name = try consumeStringLiteral()
+        let (name, _) = try consumeStringLiteral()
         /// Stage
         try consumeOneOrMore(.newLine)
         try consume(.keyword(.stage))
