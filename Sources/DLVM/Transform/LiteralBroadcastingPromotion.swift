@@ -42,7 +42,7 @@ open class LiteralBroadcastingPromotion : TransformPass {
                 case .definition(.instruction(let i)):
                     guard case let .literal(lit, ty) = i.kind,
                         case let .tensor(_, dt) = ty else {
-                            break
+                        break
                     }
                     changed = true
                     inst.substitute(.literal(.scalar(dt), lit), for: operand)

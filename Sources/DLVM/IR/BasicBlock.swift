@@ -132,7 +132,7 @@ public extension BasicBlock {
     }
 
     var isEntry: Bool {
-        return name == "entry"
+        return indexInParent == 0
     }
 }
 

@@ -28,7 +28,7 @@ public enum LexicalError : Error {
     case expectingIdentifierName(SourceLocation)
     case invalidAnonymousLocalIdentifier(SourceLocation)
     case invalidBasicBlockIndex(SourceLocation)
-    case invalidInstructionIndex(SourceLocation)
+    case invalidAnonymousIdentifierIndex(SourceLocation)
     case unknownAttribute(SourceRange)
 }
 
@@ -42,7 +42,12 @@ public enum ParseError : Error {
     case undefinedNominalType(Token)
     case redefinedIdentifier(Token)
     case anonymousIdentifierNotInLocal(Token)
-    case invalidAnonymousIdentifierIndex(Token)
+    case invalidInstructionIndex(Token)
+    case invalidArgumentIndex(Token)
+    case invalidBasicBlockIndex(Token)
+    case invalidVariableIndex(Token)
+    case invalidFunctionIndex(Token)
+    case variableAfterFunction(Token)
     case notFunctionType(SourceRange)
     case notInBasicBlock(SourceRange)
     case invalidAttributeArguments(SourceLocation)
@@ -58,7 +63,7 @@ public extension LexicalError {
              .invalidEscapeCharacter(_, let loc),
              .unexpectedToken(let loc),
              .invalidBasicBlockIndex(let loc),
-             .invalidInstructionIndex(let loc),
+             .invalidAnonymousIdentifierIndex(let loc),
              .invalidAnonymousLocalIdentifier(let loc):
             return loc
         case .illegalIdentifier(let range),
@@ -83,7 +88,12 @@ public extension ParseError {
              let .undefinedNominalType(tok),
              let .redefinedIdentifier(tok),
              let .anonymousIdentifierNotInLocal(tok),
-             let .invalidAnonymousIdentifierIndex(tok),
+             let .invalidInstructionIndex(tok),
+             let .invalidArgumentIndex(tok),
+             let .invalidBasicBlockIndex(tok),
+             let .invalidVariableIndex(tok),
+             let .invalidFunctionIndex(tok),
+             let .variableAfterFunction(tok),
              let .declarationCannotHaveBody(_, body: tok),
              let .cannotNameVoidValue(tok),
              let .invalidOperands(tok, _):
@@ -132,8 +142,18 @@ extension ParseError : CustomStringConvertible {
                 anonymous identifier \(tok) is not in a local (basic block) \
                 context
                 """
-        case let .invalidAnonymousIdentifierIndex(tok):
-            desc += "anonymous identifier \(tok) has invalid index"
+        case let .invalidInstructionIndex(tok):
+            desc += "anonymous instruction \(tok) has invalid index"
+        case let .invalidArgumentIndex(tok):
+            desc += "anonymous argument \(tok) has invalid index"
+        case let .invalidBasicBlockIndex(tok):
+            desc += "anonymous basic block \(tok) has invalid index"
+        case let .invalidVariableIndex(tok):
+            desc += "anonymous variable \(tok) has invalid index"
+        case let .invalidFunctionIndex(tok):
+            desc += "anonymous function \(tok) has invalid index"
+        case let .variableAfterFunction(tok):
+            desc += "variable \(tok) not declared before functions"
         case let .notFunctionType(range):
             desc += "type signature at \(range) is not a function type"
         case let .notInBasicBlock(range):
@@ -182,16 +202,14 @@ extension LexicalError : CustomStringConvertible {
         case .invalidAnonymousLocalIdentifier(_):
             desc += """
                 invalid anonymous local identifier. It should look like \
-                %<bb_index>.<inst_index>, e.g. %0.1
+                %<bb_index>.<inst_index|arg_index>, e.g. %0.1 or %0^1
                 """
         case .invalidBasicBlockIndex(_):
             desc += """
                 invalid index for basic block in anonymous local identifier
                 """
-        case .invalidInstructionIndex(_):
-            desc += """
-                invalid index for instruction in anonymous local identifier
-                """
+        case .invalidAnonymousIdentifierIndex(_):
+            desc += "invalid index in anonymous identifier"
         case let .unknownAttribute(range):
             desc += "unknown attribute at \(range)"
         }
@@ -297,7 +315,13 @@ extension TokenKind : CustomStringConvertible {
             return kindDesc + id
         case let .stringLiteral(str): return "\"\(str)\""
         case .newLine: return "a new line"
-        case let .anonymousIdentifier(b, i):
+        case let .anonymousGlobal(i):
+            return "@\(i)"
+        case let .anonymousArgument(b, i):
+            return "%\(b)^\(i)"
+        case let .anonymousBasicBlock(i):
+            return "'\(i)"
+        case let .anonymousInstruction(b, i):
             return "%\(b).\(i)"
         case let .attribute(attr):
             return String(describing: attr)

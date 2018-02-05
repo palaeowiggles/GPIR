@@ -61,7 +61,10 @@ extension BasicBlock : PremiseHolder {
             guard index == body.endIndex - 1 else {
                 throw VerificationError.terminatorNotLast(body)
             }
-            return Premise(first: body[0], terminator: body[index])
+            guard let entry = body.first else {
+                throw VerificationError.noEntry(body)
+            }
+            return Premise(first: entry, terminator: body[index])
         }
     }
 }
@@ -78,18 +81,14 @@ extension Function : PremiseHolder {
 
         public static func run(on body: Function) throws -> Premise {
             var exits: [(BasicBlock, Instruction)] = []
-            var maybeEntry: BasicBlock? = nil
             for bb in body {
-                if bb.isEntry {
-                    maybeEntry = bb
-                }
                 let terminator = try bb.verifyPremise().terminator
                 if case .return = terminator.kind {
                     exits.append((bb, terminator))
                 }
             }
             /// Entry must exist
-            guard let entry = maybeEntry else {
+            guard let entry = body.first else {
                 throw VerificationError.noEntry(body)
             }
             return Premise(entry: entry, exits: exits)

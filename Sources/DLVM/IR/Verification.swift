@@ -126,7 +126,7 @@ extension Module : Verifiable {
     private func verify<T: Verifiable & NamedValue>
         (_ declaration: T, namespace: inout Set<String>) throws {
         if let name = declaration.name {
-            guard namespace.contains(name) else {
+            guard !namespace.contains(name) else {
                 throw VerificationError.redeclared(declaration)
             }
             namespace.insert(name)
@@ -136,7 +136,7 @@ extension Module : Verifiable {
     
     private func verify<T: Verifiable & NominalType>
         (_ declaration: T, namespace: inout Set<String>) throws {
-        guard namespace.contains(declaration.name) else {
+        guard !namespace.contains(declaration.name) else {
             throw VerificationError.redeclared(declaration)
         }
         namespace.insert(declaration.name)

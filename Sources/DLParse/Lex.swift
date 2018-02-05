@@ -77,7 +77,10 @@ public enum TokenKind : Equatable {
     case integer(IntegerLiteralType)
     case float(FloatLiteralType)
     case identifier(IdentifierKind, String)
-    case anonymousIdentifier(Int, Int)
+    case anonymousGlobal(Int)
+    case anonymousBasicBlock(Int)
+    case anonymousArgument(Int, Int)
+    case anonymousInstruction(Int, Int)
     case dataType(DataType)
     case stringLiteral(String)
     case attribute(Function.Attribute)
@@ -257,7 +260,6 @@ private let identifierPattern = try! NSRegularExpression(pattern: "[a-zA-Z_][a-z
                                                          options: [ .dotMatchesLineSeparators ])
 
 private extension Lexer {
-
     func lexIdentifier(ofKind kind: IdentifierKind) throws -> Token {
         let prefix = characters.prefix(while: {
             !($0.isWhitespace || $0.isNewLine || $0.isPunctuation)
@@ -306,34 +308,69 @@ private extension Lexer {
                 throw LexicalError.unknownAttribute(startLoc..<location)
             }
 
-        case "@": return try lexIdentifier(ofKind: .global)
+        case "@":
+            guard let nameStart = characters.first else {
+                throw LexicalError.expectingIdentifierName(location)
+            }
+            /// If starting with a number, then it's an anonymous global identifier
+            if nameStart.isDigit {
+                let fst = characters.prefix(while: { $0.isDigit })
+                advance(by: fst.count)
+                guard let index = Int(fst.string) else {
+                    throw LexicalError.invalidAnonymousIdentifierIndex(startLoc)
+                }
+                return Token(kind: .anonymousGlobal(index),
+                             range: startLoc..<location)
+            }
+            /// Otherwise it's just a nominal identifier
+            return try lexIdentifier(ofKind: .global)
         case "%":
             guard let nameStart = characters.first else {
                 throw LexicalError.expectingIdentifierName(location)
             }
             /// If starting with a number, then it's an anonymous local identifier
             if nameStart.isDigit {
-                let fst = characters.prefix(while: {$0.isDigit})
+                let fst = characters.prefix(while: { $0.isDigit })
                 advance(by: fst.count)
                 guard let bbIndex = Int(fst.string) else {
                     throw LexicalError.invalidBasicBlockIndex(startLoc)
                 }
-                guard characters.first == "." else {
+                let sep = characters.first
+                guard sep == "." || sep == "^" else {
                     throw LexicalError.invalidAnonymousLocalIdentifier(startLoc)
                 }
                 advance(by: 1)
-                let snd = characters.prefix(while: {$0.isDigit})
+                let snd = characters.prefix(while: { $0.isDigit })
                 advance(by: snd.count)
-                guard let instIndex = Int(snd.string) else {
-                    throw LexicalError.invalidInstructionIndex(startLoc)
+                guard let localIndex = Int(snd.string) else {
+                    throw LexicalError.invalidAnonymousIdentifierIndex(startLoc)
                 }
-                return Token(kind: .anonymousIdentifier(bbIndex, instIndex),
+                if sep == "." {
+                    return Token(kind: .anonymousInstruction(bbIndex, localIndex),
+                                 range: startLoc..<location)
+                }
+                return Token(kind: .anonymousArgument(bbIndex, localIndex),
                              range: startLoc..<location)
             }
             /// Otherwise it's just a nominal identifier
             return try lexIdentifier(ofKind: .temporary)
         case "$": return try lexIdentifier(ofKind: .type)
-        case "'": return try lexIdentifier(ofKind: .basicBlock)
+        case "'":
+            guard let nameStart = characters.first else {
+                throw LexicalError.expectingIdentifierName(location)
+            }
+            /// If starting with a number, then it's an anonymous basic block identifier
+            if nameStart.isDigit {
+                let fst = characters.prefix(while: { $0.isDigit })
+                advance(by: fst.count)
+                guard let index = Int(fst.string) else {
+                    throw LexicalError.invalidAnonymousIdentifierIndex(startLoc)
+                }
+                return Token(kind: .anonymousBasicBlock(index),
+                             range: startLoc..<location)
+            }
+            /// Otherwise it's just a nominal identifier
+            return try lexIdentifier(ofKind: .basicBlock)
         case "\"":
             guard !characters.isEmpty else {
                 /// EOF

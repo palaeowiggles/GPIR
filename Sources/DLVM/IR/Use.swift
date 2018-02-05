@@ -44,7 +44,8 @@ public extension Use {
     }
 
     var definition: Definition? {
-        return value as? Definition
+        guard case let .definition(def) = self else { return nil }
+        return def
     }
 
     var name: String? {
