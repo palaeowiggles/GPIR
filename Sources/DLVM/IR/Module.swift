@@ -76,7 +76,7 @@ public extension Module {
 }
 
 extension Module {
-    open func write(toFile path: String) throws {
+    public func write(toFile path: String) throws {
         var contents = ""
         write(to: &contents)
         try contents.write(toFile: path, atomically: true, encoding: .utf8)

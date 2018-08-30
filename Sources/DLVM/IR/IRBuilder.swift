@@ -20,7 +20,7 @@
 import CoreTensor
 
 open class IRBuilder {
-    open let module: Module
+    public let module: Module
 
     /// Current basic block to insert instructions into
     open weak var currentBlock: BasicBlock? {

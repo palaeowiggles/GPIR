@@ -248,7 +248,7 @@ open class AlgebraicExpressionAnalysis : AnalysisPass {
     }
 
     /// Run pass on the basic block
-    open static func run(on body: BasicBlock) -> AlgebraicRepresentation {
+    public static func run(on body: BasicBlock) -> AlgebraicRepresentation {
         var repr = AlgebraicRepresentation()
         /// Perform DFS for every unvisited instruction
         for inst in body.reversed() where !repr.contains(inst) {

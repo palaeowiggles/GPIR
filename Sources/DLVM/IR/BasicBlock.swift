@@ -38,10 +38,10 @@ public final class BasicBlock : IRCollection, IRUnit {
     public typealias Element = Instruction
 
     /// Name of the basic block
-    open var name: String?
-    open var arguments: OrderedSet<Argument> = []
-    open var elements: OrderedSet<Instruction> = []
-    open var parent: Function
+    public var name: String?
+    public var arguments: OrderedSet<Argument> = []
+    public var elements: OrderedSet<Instruction> = []
+    public var parent: Function
     public internal(set) var passManager: PassManager<BasicBlock> = PassManager()
 
     internal init<C: Collection>(name: String?, arguments: C, parent: Function)
