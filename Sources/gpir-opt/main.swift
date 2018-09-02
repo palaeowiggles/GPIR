@@ -17,9 +17,9 @@
 //  limitations under the License.
 //
 
-import DLVM
-import DLParse
-import DLCommandLineTools
+import GPIR
+import GPParse
+import GPCommandLineTools
 import Foundation
 import Basic
 import Utility

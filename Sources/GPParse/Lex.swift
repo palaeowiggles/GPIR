@@ -17,10 +17,10 @@
 //  limitations under the License.
 //
 
-import enum DLVM.InstructionKind
-import enum DLVM.Opcode
-import enum DLVM.DataType
-import class DLVM.Function
+import enum GPIR.InstructionKind
+import enum GPIR.Opcode
+import enum GPIR.DataType
+import class GPIR.Function
 
 // MARK: - Token definition
 

@@ -17,7 +17,7 @@
 //  limitations under the License.
 //
 
-import DLVM
+import GPIR
 
 public enum LexicalError : Error {
     case unexpectedToken(SourceLocation)

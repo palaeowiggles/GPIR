@@ -18,7 +18,7 @@
 //
 
 import XCTest
-@testable import DLVM
+@testable import GPIR
 
 class IRTests : XCTestCase {
     let builder = IRBuilder(moduleName: "IRTest")

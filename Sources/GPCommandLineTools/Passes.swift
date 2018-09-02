@@ -17,7 +17,7 @@
 //  limitations under the License.
 //
 
-import DLVM
+import GPIR
 import protocol Utility.StringEnumArgument
 import enum Utility.ShellCompletion
 

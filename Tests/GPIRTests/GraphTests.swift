@@ -18,7 +18,7 @@
 //
 
 import XCTest
-@testable import DLVM
+@testable import GPIR
 
 class GraphTests : XCTestCase {
     func testTraversal() {

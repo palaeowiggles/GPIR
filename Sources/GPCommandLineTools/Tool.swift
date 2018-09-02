@@ -25,7 +25,7 @@
 
 import Basic
 import Utility
-import struct DLVM.OrderedSet
+import struct GPIR.OrderedSet
 
 open class CommandLineTool<Options : ToolOptions> {
     /// An enum indicating the execution status of run commands.
@@ -75,7 +75,7 @@ open class CommandLineTool<Options : ToolOptions> {
                        kind: [PathArgument].self,
                        usage: "Output paths"),
             to: {
-                if !$1.isEmpty { $0.passes = DLVM.OrderedSet($1) }
+                if !$1.isEmpty { $0.passes = GPIR.OrderedSet($1) }
                 if !$2.isEmpty { $0.outputPaths = $2.lazy.map({ $0.path }) }
             }
         )

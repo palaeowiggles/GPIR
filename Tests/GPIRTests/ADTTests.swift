@@ -18,7 +18,7 @@
 //
 
 import XCTest
-@testable import struct DLVM.OrderedSet
+@testable import struct GPIR.OrderedSet
 
 class ADTTests : XCTestCase {
     func testOrderedSet() {

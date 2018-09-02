@@ -18,7 +18,7 @@
 //
 
 import XCTest
-@testable import DLParse
+@testable import GPParse
 
 class ParseTests : XCTestCase {
     func testType() throws {

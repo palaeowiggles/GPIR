@@ -1,7 +1,7 @@
 // swift-tools-version:4.0
 //
 //  Package.swift
-//  DLVM
+//  GPIR
 //
 //  Copyright 2016-2018 The DLVM Team.
 //
@@ -21,18 +21,18 @@
 import PackageDescription
 
 let package = Package(
-    name: "DLVM",
+    name: "GPIR",
     products: [
-        .library(name: "DLVM", type: .dynamic,
-                 targets: ["DLVM", "DLParse"]),
-        .library(name: "DLVMCore", type: .static,
-                 targets: ["DLVM"]),
-        .library(name: "DLParse", type: .static,
-                 targets: ["DLParse"]),
-        .library(name: "DLCommandLineTools", type: .static,
-                 targets: ["DLCommandLineTools"]),
-        .executable(name: "dlopt",
-                    targets: ["dlopt"]),
+        .library(name: "GPIR", type: .dynamic,
+                 targets: ["GPIR", "GPParse"]),
+        .library(name: "GPIRCore", type: .static,
+                 targets: ["GPIR"]),
+        .library(name: "GPParse", type: .static,
+                 targets: ["GPParse"]),
+        .library(name: "GPCommandLineTools", type: .static,
+                 targets: ["GPCommandLineTools"]),
+        .executable(name: "gpir-opt",
+                    targets: ["gpir-opt"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-package-manager",
@@ -40,17 +40,17 @@ let package = Package(
         .package(url: "https://github.com/dlvm-team/CoreTensor", from: "0.7.2")
     ],
     targets: [
-        .target(name: "DLVM", dependencies: ["CoreTensor"]),
-        .target(name: "DLParse", dependencies: ["DLVM"]),
-        .target(name: "DLCommandLineTools", dependencies: [
-            "Utility", "DLVM", "DLParse"
+        .target(name: "GPIR", dependencies: ["CoreTensor"]),
+        .target(name: "GPParse", dependencies: ["GPIR"]),
+        .target(name: "GPCommandLineTools", dependencies: [
+            "Utility", "GPIR", "GPParse"
         ]),
-        .target(name: "dlopt", dependencies: [
-            "DLVM", "DLParse", "DLCommandLineTools"
+        .target(name: "gpir-opt", dependencies: [
+            "GPIR", "GPParse", "GPCommandLineTools"
         ]),
-        .testTarget(name: "DLVMTests", dependencies: ["DLVM"]),
-        .testTarget(name: "DLParseTests", dependencies: [
-            "DLVM", "DLParse"
+        .testTarget(name: "GPIRTests", dependencies: ["GPIR"]),
+        .testTarget(name: "GPParseTests", dependencies: [
+            "GPIR", "GPParse"
         ]),
     ],
     swiftLanguageVersions: [4]

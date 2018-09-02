@@ -1,5 +1,5 @@
 //
-//  IO.swift
+//  Options.swift
 //  DLCommandLineTools
 //
 //  Copyright 2016-2018 The DLVM Team.
@@ -17,18 +17,18 @@
 //  limitations under the License.
 //
 
-import Foundation
-import DLVM
-import DLParse
+import struct Basic.AbsolutePath
+import struct GPIR.OrderedSet
 
-public extension Module {
-    static func parsed(fromFile filePath: String) throws -> Module {
-        /// Read IR and verify
-        let irSource = try String(contentsOfFile: filePath, encoding: .utf8)
-        /// Lex and parse
-        let parser = try Parser(text: irSource)
-        let module = try parser.parseModule()
-        try module.verify()
-        return module
-    }
+open class ToolOptions {
+    /// Input files
+    public var inputFiles: [AbsolutePath] = []
+    /// Output paths
+    public var outputPaths: [AbsolutePath]?
+    /// Transformation passes
+    public var passes: OrderedSet<TransformPass>?
+    /// Print IR
+    public var shouldPrintIR = true
+
+    public required init() {}
 }

@@ -21,7 +21,7 @@
 /// diagnostics. The parser entry is `Parser.parseModule`.
 
 import CoreTensor
-import DLVM
+import GPIR
 
 // MARK: - Semantic environment
 
