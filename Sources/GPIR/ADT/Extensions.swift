@@ -1,6 +1,6 @@
 //
 //  Extensions.swift
-//  DLVM
+//  GPIR
 //
 //  Copyright 2016-2018 The DLVM Team.
 //

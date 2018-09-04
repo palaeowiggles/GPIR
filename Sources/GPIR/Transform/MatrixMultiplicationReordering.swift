@@ -1,6 +1,6 @@
 //
 //  MatrixMultiplicationReordering.swift
-//  DLVM
+//  GPIR
 //
 //  Copyright 2016-2017 Richard Wei.
 //
