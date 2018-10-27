@@ -535,6 +535,8 @@ private extension Lexer {
         case "insert": kind = .opcode(.insert)
         case "branchEnum": kind = .opcode(.branchEnum)
         case "apply": kind = .opcode(.apply)
+        case "load": kind = .opcode(.load)
+        case "store": kind = .opcode(.store)
         case "elementPointer": kind = .opcode(.elementPointer)
         case "trap": kind = .opcode(.trap)
         case "and": kind = .opcode(.booleanBinaryOp(.and))

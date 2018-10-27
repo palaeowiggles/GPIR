@@ -35,6 +35,7 @@ public enum VerificationError<Node : Verifiable> : Error {
     case instructionParentMismatch(BasicBlock, Node)
     case instructionFunctionMismatch(Function, Node)
     case invalidAllocationSize(Node)
+    case invalidCopyOperands(Use, Use, Node)
     case invalidEnumCase(EnumType, String, Node)
     case invalidEnumCaseBranch(EnumType, EnumType.Case, BasicBlock, Node)
     case invalidIndex(Use, Int, Node)
@@ -471,6 +472,19 @@ extension InstructionKind {
                 guard enumCase.associatedTypes == bb.arguments.map({$0.type}) else {
                     throw VerificationError.invalidEnumCaseBranch(e1, enumCase, bb, instruction)
                 }
+            }
+
+        case let .load(v1):
+            guard case .pointer(_) = v1.type.unaliased else {
+                throw VerificationError.notPointer(v1, instruction)
+            }
+
+        case let .store(v1, to: v2):
+            guard case let .pointer(elementType) = v2.type.unaliased else {
+                throw VerificationError.notPointer(v2, instruction)
+            }
+            guard v1.type == elementType else {
+                throw VerificationError.typeMismatch(v1, v2, instruction)
             }
 
         case let .elementPointer(v, ii):
