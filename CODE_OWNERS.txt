@@ -7,12 +7,12 @@ The list is sorted by surname and formatted to allow easy grepping and
 beautification by scripts.  The fields are: name (N), email (E), web-address
 (W), description (D).
 
-N: Dan Zheng
-E: fangda.zheng@gmail.com
-W: http://danzheng.me
-D: Automatic differentiation, command line tools, and testing infrastructure.
-
 N: Richard Wei
 E: rxrwei@gmail.com
 W: http://rxwei.me/about
-D: Everything else.
+D: Everything.
+
+N: Dan Zheng
+E: fangda.zheng@gmail.com
+W: http://danzheng.me
+D: Everything.

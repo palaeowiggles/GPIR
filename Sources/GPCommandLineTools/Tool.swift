@@ -1,8 +1,8 @@
 //
 //  Tool.swift
-//  DLCommandLineTools
+//  GPCommandLineTools
 //
-//  Copyright 2016-2018 The DLVM Team.
+//  Copyright 2018 The GPIR Team.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ open class CommandLineTool<Options : ToolOptions> {
         binder.bindArray(
             positional: parser.add(positional: "input files",
                                    kind: [PathArgument].self,
-                                   usage: "DLVM IR input files"),
+                                   usage: "GPVM IR input files"),
             to: { $0.inputFiles = $1.lazy.map({ $0.path }) }
         )
 
