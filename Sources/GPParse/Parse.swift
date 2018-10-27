@@ -20,7 +20,6 @@
 /// This file contains a hand-written LL parser with reasonably fine-tuned
 /// diagnostics. The parser entry is `Parser.parseModule`.
 
-import CoreTensor
 import GPIR
 
 // MARK: - Semantic environment
@@ -152,17 +151,6 @@ private extension Parser {
         }
     }
 
-    func parsePadding() throws -> (Padding, SourceRange) {
-        let name: String = "a padding type"
-        let tok = try consumeOrDiagnose(name)
-        switch tok.kind {
-        case .keyword(.none): return (.none, tok.range)
-        case .keyword(.half): return (.half, tok.range)
-        case .keyword(.full): return (.full, tok.range)
-        default: throw ParseError.unexpectedToken(expected: name, tok)
-        }
-    }
-
     func parseDataType() throws -> (DataType, SourceRange) {
         let name: String = "a data type"
         let tok = try consumeOrDiagnose(name)
@@ -281,18 +269,20 @@ extension Parser {
     func parseLiteral(in basicBlock: BasicBlock?) throws -> (Literal, SourceRange) {
         let tok = try consumeOrDiagnose("a literal")
         switch tok.kind {
+        /*
         /// Float
         case let .float(f):
             return (.scalar(.float(f)), tok.range)
         /// Integer
         case let .integer(i):
             return (.scalar(.int(i)), tok.range)
+        */
         /// Boolean `true`
         case .keyword(.true):
-            return (.scalar(.bool(true)), tok.range)
+            return (.bool(true), tok.range)
         /// Boolean `false`
         case .keyword(.false):
-            return (.scalar(.bool(false)), tok.range)
+            return (.bool(false), tok.range)
         /// `null`
         case .keyword(.null):
             return (.null, tok.range)
@@ -302,24 +292,12 @@ extension Parser {
         /// `zero`
         case .keyword(.zero):
             return (.zero, tok.range)
-        /// Array
-        case .punctuation(.leftSquareBracket):
-            let elements = try parseUseList(in: basicBlock,
-                                            unless: { $0.kind == .punctuation(.rightSquareBracket) })
-            try consumeWrappablePunctuation(.rightSquareBracket)
-            return (.array(elements), tok.range)
         /// Tuple
         case .punctuation(.leftParenthesis):
             let elements = try parseUseList(in: basicBlock,
                                             unless: { $0.kind == .punctuation(.rightParenthesis) })
             try consumeWrappablePunctuation(.rightParenthesis)
             return (.tuple(elements), tok.range)
-        /// Tensor
-        case .punctuation(.leftAngleBracket):
-            let elements = try parseUseList(in: basicBlock,
-                                            unless: { $0.kind == .punctuation(.rightAngleBracket) })
-            try consumeWrappablePunctuation(.rightAngleBracket)
-            return (.tensor(elements), tok.range)
         /// Struct
         case .punctuation(.leftCurlyBracket):
             let fields: [(String, Use)] = try parseMany({
@@ -348,25 +326,6 @@ extension Parser {
         }
     }
 
-    /// Parse a non-scalar shape
-    func parseNonScalarShape() throws -> (TensorShape, SourceRange) {
-        let (first, firstRange) = try parseInteger()
-        var dims = [first]
-        var lastLoc = firstRange.upperBound
-        while let dim: Int = withBacktracking({
-            let num: Int, range: SourceRange
-            do {
-                try consumeWrappablePunctuation(.times)
-                (num, range) = try parseInteger()
-            } catch {
-                return nil
-            }
-            lastLoc = range.upperBound
-            return num
-        }) { dims.append(dim) }
-        return (TensorShape(dims), firstRange.lowerBound..<lastLoc)
-    }
-
     /// Parse an integer list
     func parseIntegerList() throws -> [Int] {
         return try parseMany({
@@ -390,54 +349,6 @@ extension Parser {
         })
     }
 
-    /// Parse a shape
-    func parseShape() throws -> TensorShape {
-        return try withPeekedToken("""
-            dimensions separated by 'x', or 'scalar'
-            """, { tok in
-                switch tok.kind {
-                case .keyword(.scalar):
-                    consumeToken()
-                    return .scalar
-                case .integer(_):
-                    return try parseNonScalarShape().0
-                default:
-                    return nil
-                }
-            }
-        )
-    }
-
-    func parseReductionCombinator(in basicBlock: BasicBlock?) throws -> ReductionCombinator {
-        return try withPeekedToken("""
-            a function or an associative operator
-            """, { tok in
-                switch tok.kind {
-                case .opcode(.builtin):
-                    consumeToken()
-                    let (opcode, range) = try consumeStringLiteral()
-                    guard let intrinsic = IntrinsicRegistry.global.intrinsic(named: opcode) else {
-                        throw ParseError.undefinedIntrinsic(opcode, range)
-                    }
-                    guard let numericBuiltin = intrinsic as? NumericBinaryIntrinsic.Type else {
-                        throw ParseError.invalidReductionCombinator(intrinsic, range)
-                    }
-                    return .numericBuiltin(numericBuiltin)
-                case .identifier(_):
-                    return try .function(parseUse(in: basicBlock).0)
-                case .opcode(.numericBinaryOp(let op)):
-                    consumeToken()
-                    return .numeric(op)
-                case .opcode(.booleanBinaryOp(let op)):
-                    consumeToken()
-                    return .boolean(op)
-                default:
-                    return nil
-                }
-            }
-        )
-    }
-
     func parseElementKey(in basicBlock: BasicBlock?) throws -> (ElementKey, SourceRange) {
         return try withPeekedToken("an element key", { tok in
             consumeToken()
@@ -459,26 +370,9 @@ extension Parser {
         /// Void
         case .keyword(.void):
             return (.void, tok.range)
-        /// Scalar
-        case .dataType(let dt):
-            return (.tensor([], dt), tok.range)
-        /// Stack
-        case .keyword(.stack):
-            return (.stack, tok.range)
-        /// Array
-        case .punctuation(.leftSquareBracket):
-            let (count, _) = try parseInteger()
-            try consumeWrappablePunctuation(.times)
-            let (elementType, _) = try parseType()
-            let rightBkt = try consume(.punctuation(.rightSquareBracket))
-            return (.array(count, elementType), tok.startLocation..<rightBkt.endLocation)
-        /// Tensor
-        case .punctuation(.leftAngleBracket):
-            let (shape, _) = try parseNonScalarShape()
-            try consumeWrappablePunctuation(.times)
-            let (dt, _) = try parseDataType()
-            let rightBkt = try consume(.punctuation(.rightAngleBracket))
-            return (.tensor(shape, dt), tok.startLocation..<rightBkt.endLocation)
+        /// Boolean
+        case .dataType(.bool):
+            return (.bool, tok.range)
         /// Tuple/function
         case .punctuation(.leftParenthesis):
             let elementTypes = try parseMany({
@@ -758,175 +652,6 @@ extension Parser {
             }
             return .return(val)
 
-        /// 'dataTypeCast' <val> 'to' <data_type>
-        case .dataTypeCast:
-            let (srcVal, _) = try parseUse(in: basicBlock)
-            try consume(.keyword(.to))
-            let (dtype, _) = try parseDataType()
-            return .dataTypeCast(srcVal, dtype)
-
-        /// 'scan' <val> 'by' <func|assoc_op> 'along' <num> (',' <num>)*
-        case .scan:
-            let (val, _) = try parseUse(in: basicBlock)
-            try consume(.keyword(.by))
-            let combinator = try parseReductionCombinator(in: basicBlock)
-            try consume(.keyword(.along))
-            let dims = try parseIntegerList()
-            return .scan(combinator, val, dims: dims)
-
-        /// 'reduce' <val> 'by' <func|assoc_op> 'init' <val> 'along' <num> (',' <num>)*
-        case .reduce:
-            let (val, _) = try parseUse(in: basicBlock)
-            try consume(.keyword(.by))
-            let combinator = try parseReductionCombinator(in: basicBlock)
-            try consume(.keyword(.init))
-            let (initial, _) = try parseUse(in: basicBlock)
-            try consume(.keyword(.along))
-            let dims = try parseIntegerList()
-            return .reduce(combinator, val, initial: initial, dims: dims)
-
-        /// 'reduceWindow' <val> 'by' <func|assoc_op> 'init' <val>
-        ///     'dims' <num> (',' <num>)*
-        ///     'strides' <num> (',' <num>)*
-        ///     'padding' <bool>
-        case .reduceWindow:
-            let (val, _) = try parseUse(in: basicBlock)
-            try consume(.keyword(.by))
-            let combinator = try parseReductionCombinator(in: basicBlock)
-            try consume(.keyword(.init))
-            let (initial, _) = try parseUse(in: basicBlock)
-            try consume(.keyword(.dims))
-            let dims = try parseIntegerList()
-            try consume(.keyword(.strides))
-            let strides = try parseIntegerList()
-            try consume(.keyword(.padding))
-            let padding = try parsePadding().0
-            return .reduceWindow(combinator, val, initial: initial, dims: dims,
-                                 strides: strides, padding: padding)
-
-        /// 'dot' <val> ',' <val>
-        case .dot:
-            let (lhs, _) = try parseUse(in: basicBlock)
-            try consumeWrappablePunctuation(.comma)
-            let (rhs, _) = try parseUse(in: basicBlock)
-            return .dot(lhs, rhs)
-
-        /// 'concatenate' <val> (',' <val>)* along <num>
-        case .concatenate:
-            let vals = try parseUseList(in: basicBlock)
-            try consume(.keyword(.along))
-            let (axis, _) = try parseInteger()
-            return .concatenate(vals, axis: axis)
-
-        /// 'transpose' <val>
-        case .transpose:
-            return try .transpose(parseUse(in: basicBlock).0)
-
-        /// 'reverse' <val> 'along' <num> (',' <num>)*
-        case .reverse:
-            let val = try parseUse(in: basicBlock).0
-            try consume(.keyword(.along))
-            let dims = try parseIntegerList()
-            return .reverse(val, dims: dims)
-
-        /// 'slice' <val> 'from' <num> 'upto' <num>
-        case .slice:
-            let (val, _) = try parseUse(in: basicBlock)
-            try consume(.keyword(.from))
-            let (lowerBound, _) = try parseInteger()
-            try consume(.keyword(.upto))
-            let (upperBound, _) = try parseInteger()
-            return .slice(val, at: lowerBound...upperBound)
-
-        /// 'convolve' <val> 'kernel' <val>
-        ///     'strides' <num> (',' <num>)*
-        ///     'padding' '(' <num> ',' <num> ')' (',' '(' <num> ',' <num> ')')*
-        ///     'leftDilation' <num> (',' <num>)*
-        ///     'rightDilation' <num> (',' <num>)*
-        ///     'groups' <num>
-        case .convolve:
-            let (val, _) = try parseUse(in: basicBlock)
-            try consume(.keyword(.kernel))
-            let (kernel, _) = try parseUse(in: basicBlock)
-            /// strides
-            var strides: [Int]?
-            if case .keyword(.strides)? = currentToken?.kind {
-                consumeToken()
-                strides = try parseIntegerList()
-            }
-            /// padding
-            var padding: [(low: Int, high: Int)]?
-            if case .keyword(.padding)? = currentToken?.kind {
-                consumeToken()
-                padding = try parseIntegerTupleList()
-            }
-            /// left dilation
-            var ld: [Int]?
-            if case .keyword(.leftDilation)? = currentToken?.kind {
-                consumeToken()
-                ld = try parseIntegerList()
-            }
-            /// right dilation
-            var rd: [Int]?
-            if case .keyword(.rightDilation)? = currentToken?.kind {
-                consumeToken()
-                rd = try parseIntegerList()
-            }
-            /// groups
-            var groups: Int?
-            if case .keyword(.groups)? = currentToken?.kind {
-                consumeToken()
-                groups = try parseInteger().0
-            }
-            return .convolve(val, kernel: kernel, strides: strides, padding: padding,
-                             leftDilation: ld, rightDilation: rd, groups: groups)
-
-        /// 'rank' 'of' <val>
-        case .rank:
-            try consume(.keyword(.of))
-            let (val, _) = try parseUse(in: basicBlock)
-            return .rank(of: val)
-
-        /// 'shape' 'of' <val>
-        case .shape:
-            try consume(.keyword(.of))
-            let (val, _) = try parseUse(in: basicBlock)
-            return .shape(of: val)
-
-        /// 'unitCount' 'of' <val>
-        case .unitCount:
-            try consume(.keyword(.of))
-            let (val, _) = try parseUse(in: basicBlock)
-            return .unitCount(of: val)
-
-        /// 'padShape' <val> 'at' <num>
-        case .padShape:
-            let (val, _) = try parseUse(in: basicBlock)
-            try consume(.keyword(.at))
-            let (index, _) = try parseInteger()
-            return .padShape(val, at: index)
-
-        /// 'squeezeShape' <val> 'at' <num>
-        case .squeezeShape:
-            let (val, _) = try parseUse(in: basicBlock)
-            try consume(.keyword(.at))
-            let (index, _) = try parseInteger()
-            return .squeezeShape(val, at: index)
-
-        /// 'shapeCast' <val> 'to' <shape>
-        case .shapeCast:
-            let (val, _) = try parseUse(in: basicBlock)
-            try consume(.keyword(.to))
-            let shape = try parseShape()
-            return .shapeCast(val, to: shape)
-
-        /// 'bitCast' <val> 'to' <type>
-        case .bitCast:
-            let (val, _) = try parseUse(in: basicBlock)
-            try consume(.keyword(.to))
-            let (type, _) = try parseType()
-            return .bitCast(val, to: type)
-
         /// 'extract' <num|key|val> (',' <num|key|val>)* 'from' <val>
         case .extract:
             let keys: [ElementKey] = try parseMany({
@@ -1018,74 +743,6 @@ extension Parser {
                 return .apply(fn.makeUse(), args)
             }
 
-        /// 'allocateStack' <type> 'count' <num>
-        case .allocateStack:
-            let (type, _) = try parseType()
-            try consume(.keyword(.count))
-            let (count, _) = try parseInteger()
-            return .allocateStack(type, count)
-
-        /// 'allocateHeap' <type> 'count' <val>
-        case .allocateHeap:
-            let (type, _) = try parseType()
-            try consume(.keyword(.count))
-            let (count, _) = try parseUse(in: basicBlock)
-            return .allocateHeap(type, count: count)
-
-        /// 'allocateBox' <type>
-        case .allocateBox:
-            return try .allocateBox(parseType().0)
-
-        /// 'projectBox' <val>
-        case .projectBox:
-            return try .projectBox(parseUse(in: basicBlock).0)
-
-        /// 'createStack'
-        case .createStack:
-            return .createStack
-
-        /// 'destroyStack' <val>
-        case .destroyStack:
-            let (stack, _) = try parseUse(in: basicBlock)
-            return .destroyStack(stack)
-
-        /// 'push' <val> 'to' <val>
-        case .push:
-            let (val, _) = try parseUse(in: basicBlock)
-            try consume(.keyword(.to))
-            let (stack, _) = try parseUse(in: basicBlock)
-            return .push(val, to: stack)
-
-        /// 'pop' <type> 'from' <val>
-        case .pop:
-            let (ty, _) = try parseType()
-            try consume(.keyword(.from))
-            let (stack, _) = try parseUse(in: basicBlock)
-            return .pop(ty, from: stack)
-
-        /// 'retain' <val>
-        case .retain:
-            return try .retain(parseUse(in: basicBlock).0)
-
-        /// 'release' <val>
-        case .release:
-            return try .release(parseUse(in: basicBlock).0)
-
-        /// 'deallocate' <val>
-        case .deallocate:
-            return try .deallocate(parseUse(in: basicBlock).0)
-
-        /// 'load' <val>
-        case .load:
-            return try .load(parseUse(in: basicBlock).0)
-
-        /// 'store' <val> 'to' <val>
-        case .store:
-            let (src, _) = try parseUse(in: basicBlock)
-            try consume(.keyword(.to))
-            let (dest, _) = try parseUse(in: basicBlock)
-            return .store(src, to: dest)
-
         /// 'elementPointer' <val> 'at' <num|key|val> (<num|key|val> ',')*
         case .elementPointer:
             let (base, _) = try parseUse(in: basicBlock)
@@ -1097,26 +754,9 @@ extension Parser {
             })
             return .elementPointer(base, keys)
 
-        /// 'copy' 'from' <val> 'to' <val> 'count' <val>
-        case .copy:
-            try consume(.keyword(.from))
-            let (src, _) = try parseUse(in: basicBlock)
-            try consume(.keyword(.to))
-            let (dest, _) = try parseUse(in: basicBlock)
-            try consume(.keyword(.count))
-            let (count, _) = try parseUse(in: basicBlock)
-            return .copy(from: src, to: dest, count: count)
-
         /// 'trap'
         case .trap:
             return .trap
-
-        /// <numeric_binary_op> <val>, <val>
-        case let .numericBinaryOp(op):
-            let (lhs, _) = try parseUse(in: basicBlock)
-            try consumeWrappablePunctuation(.comma)
-            let (rhs, _) = try parseUse(in: basicBlock)
-            return .numericBinary(op, lhs, rhs)
 
         /// <boolean_binary_op> <val>, <val>
         case let .booleanBinaryOp(op):
@@ -1125,37 +765,9 @@ extension Parser {
             let (rhs, _) = try parseUse(in: basicBlock)
             return .booleanBinary(op, lhs, rhs)
 
-        /// <comparison_op> <val>, <val>
-        case let .compare(op):
-            let (lhs, _) = try parseUse(in: basicBlock)
-            try consumeWrappablePunctuation(.comma)
-            let (rhs, _) = try parseUse(in: basicBlock)
-            return .compare(op, lhs, rhs)
-
-        /// <numeric_unary_op> <val>
-        case let .numericUnaryOp(op):
-            return try .numericUnary(op, parseUse(in: basicBlock).0)
-
+        /// 'not' <val>
         case .not:
             return try .not(parseUse(in: basicBlock).0)
-
-        /// 'random' <shape> 'from' <val> 'upto' <val>
-        case .random:
-            let shape = try parseShape()
-            try consume(.keyword(.from))
-            let (lo, _) = try parseUse(in: basicBlock)
-            try consume(.keyword(.upto))
-            let (hi, _) = try parseUse(in: basicBlock)
-            return .random(shape, from: lo, upTo: hi)
-
-        /// 'select' <val>, <val> 'by' <val>
-        case .select:
-            let (lhs, _) = try parseUse(in: basicBlock)
-            try consumeWrappablePunctuation(.comma)
-            let (rhs, _) = try parseUse(in: basicBlock)
-            try consume(.keyword(.by))
-            let (flags, _) = try parseUse(in: basicBlock)
-            return .select(lhs, rhs, by: flags)
         }
     }
 
@@ -1275,60 +887,6 @@ extension Parser {
     func parseFunctionDeclarationKind() throws -> Function.DeclarationKind {
         return try withPeekedToken("a declaration kind ('extern' or 'adjoint')", { tok in
             switch tok.kind {
-            case .keyword(.adjoint):
-                consumeToken()
-                let fnName: String
-                let tok = try consumeOrDiagnose("a function identifier")
-                switch tok.kind {
-                case let .identifier(.global, name):
-                    fnName = name
-                case let .anonymousGlobal(index):
-                    fnName = String(index)
-                default:
-                    return nil
-                }
-                guard let fn = environment.globals[fnName] as? Function else {
-                    throw ParseError.undefinedIdentifier(tok)
-                }
-                /// from
-                var sourceIndex: Int?
-                if case .keyword(.from)? = currentToken?.kind {
-                    consumeToken()
-                    sourceIndex = try parseInteger().0
-                }
-                /// wrt
-                var argumentIndices: [Int]?
-                if case .keyword(.wrt)? = currentToken?.kind {
-                    consumeToken()
-                    argumentIndices = try parseMany({
-                        try parseInteger().0
-                    }, separatedBy: {
-                        try consume(.punctuation(.comma))
-                    })
-                }
-                /// keeping
-                var keptIndices: [Int] = []
-                if case .keyword(.keeping)? = currentToken?.kind {
-                    consumeToken()
-                    keptIndices = try parseMany({
-                        try parseInteger().0
-                    }, separatedBy: {
-                        try consume(.punctuation(.comma))
-                    })
-                }
-                /// seedable
-                var isSeedable = false
-                if case .keyword(.seedable)? = currentToken?.kind {
-                    consumeToken()
-                    isSeedable = true
-                }
-                let config = AdjointConfiguration(
-                    primal: fn, sourceIndex: sourceIndex,
-                    argumentIndices: argumentIndices, keptIndices: keptIndices,
-                    isSeedable: isSeedable
-                )
-                return .adjoint(config)
-
             case .keyword(.extern):
                 consumeToken()
                 return .external

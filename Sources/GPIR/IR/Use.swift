@@ -32,10 +32,6 @@ public extension Use {
         }
     }
 
-    var tensorType: TensorType? {
-        return type.tensorType
-    }
-
     var value: Value {
         switch self {
         case let .literal(ty, lit): return LiteralValue(type: ty, literal: lit)

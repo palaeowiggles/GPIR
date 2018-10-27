@@ -23,11 +23,9 @@ import XCTest
 class ParseTests : XCTestCase {
     func testType() throws {
         let types = [
-            "f32",
-            "[1 x f32]",
-            "*<4 x 3 x 10 x i64>",
-            "[1 x <4 x 3 x i8>]",
-            "(i8, <4 x 3 x bool>)"
+            "bool",
+            "*bool",
+            "(bool, (bool, bool))"
         ]
         for type in types {
             do {
@@ -41,17 +39,12 @@ class ParseTests : XCTestCase {
 
     func testUse() throws {
         let uses = [
-            "2 : f32",
-            "1 : [1 x f32]",
+            "true : bool",
             """
-            (3 : <4 x 3 x 10 x i64>, <1.0: f32, 2.0: f32, 3.0: f32> : <3 x f32>)\
-            : (<4 x 3 x 10 x i64>, <3 x f32>)
+            (false : bool, (true : bool, false : bool): (bool, bool)) : (bool, (bool, bool))
             """,
-            "100.0 : [1 x <4 x 3 x i8>]",
-            "100.0 : (i8, <4 x 3 x bool>)",
-            "false :///comments\n\n <4 x 3 x bool>",
-            "0 : <4 x 3 x i32>",
-            "{ #hello = false : bool, #value = 100.0: f32 } : f32"
+            "false :///comments\n\n bool>",
+            "{ #hello = false : bool, #value = true: bool } : bool"
         ]
         for type in uses {
             do {
@@ -65,8 +58,9 @@ class ParseTests : XCTestCase {
 
     func testInstructionKind() throws {
         let uses = [
-            "add 1: f32, <2: f32, 3: f32>: <2 x f32>",
-            "elementPointer 1: *f32 at #name1, #name2, 3, 4",
+            "literal (true: bool, false: bool): (bool, bool)",
+            "and true: bool, false: bool",
+            "elementPointer true: *bool at #name1, #name2, 3, 4",
         ]
         for type in uses {
             do {

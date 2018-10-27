@@ -17,6 +17,8 @@
 //  limitations under the License.
 //
 
+// TODO: Revisit when other literal types are implemented.
+
 open class LiteralBroadcastingPromotion : TransformPass {
     public typealias Body = BasicBlock
 
@@ -25,27 +27,27 @@ open class LiteralBroadcastingPromotion : TransformPass {
         for inst in body {
             /// Instruction must be broadcastable
             switch inst.kind {
-            case .numericBinary, .booleanBinary, .compare: break
+            case .booleanBinary: break
             default: continue
             }
             for operand in inst.operands {
-                /// Operand must have tensor type
-                guard case let .tensor(_, dt) = operand.type else {
+                /// Operand must have scalar type
+                guard case .bool = operand.type else {
                     continue
                 }
                 /// Operand must be a literal or literal instruction
                 switch operand {
-                case let .literal(_, .scalar(sLit)):
-                    let newOperand: Use = .literal(.scalar(dt), .scalar(sLit))
+                case let .literal(_, .bool(lit)):
+                    let newOperand: Use = .literal(.bool, .bool(lit))
                     inst.substitute(newOperand, for: operand)
                     changed = true
                 case .definition(.instruction(let i)):
                     guard case let .literal(lit, ty) = i.kind,
-                        case let .tensor(_, dt) = ty else {
+                        case .bool = ty else {
                         break
                     }
                     changed = true
-                    inst.substitute(.literal(.scalar(dt), lit), for: operand)
+                    inst.substitute(.literal(.bool, lit), for: operand)
                 default:
                     break
                 }

@@ -42,7 +42,7 @@ public class Loop : HashableByReference {
 
 public extension Loop {
     var header: BasicBlock {
-        guard let first = blocks.first else { DLImpossible() }
+        guard let first = blocks.first else { GPIRImpossible() }
         return first
     }
 
@@ -158,6 +158,9 @@ public extension Loop {
         precondition(predecessors.count == 2, """
             Loop header should have two predecessors: entry and latch
             """)
+        // NOTE(dan-zheng): Induction variables have a scalar integer type,
+        // hasn't been designed yet. Thus, the calculation here is blocked.
+        /*
         let entry: BasicBlock, latch: BasicBlock
         if contains(predecessors[0]) {
             entry = predecessors[1]
@@ -179,6 +182,7 @@ public extension Loop {
             }
             return argument
         }
+        */
         return nil
     }
 }

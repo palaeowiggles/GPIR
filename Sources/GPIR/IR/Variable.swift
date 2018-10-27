@@ -46,7 +46,7 @@ extension Variable : Value {
 public extension Variable {
     var printedName: String {
         if let name = name { return name }
-        let selfIndex = parent.variables.index(of: self) ?? DLImpossibleResult()
+        let selfIndex = parent.variables.index(of: self) ?? GPIRImpossibleResult()
         return selfIndex.description
     }
 }

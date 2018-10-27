@@ -23,6 +23,7 @@ import XCTest
 class AnalysisTests : XCTestCase {
     let builder = IRBuilder(moduleName: "AnalysisTest")
 
+    /*
     func testLoop() {
         let fun = builder.buildFunction(
             named: "gcd",
@@ -181,5 +182,9 @@ class AnalysisTests : XCTestCase {
             ("testLoop", testLoop),
             ("testNestedLoop", testNestedLoop)
         ]
+    }
+    */
+    static var allTests: [(String, (AnalysisTests) -> () throws -> Void)] {
+        return []
     }
 }

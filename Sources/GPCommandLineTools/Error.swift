@@ -21,7 +21,7 @@ import Foundation
 import Basic
 import Utility
 
-public enum DLError: Error {
+public enum GPIRError: Error {
     /// No input files were specified.
     case noInputFiles
     /// An input file is invalid.
@@ -33,7 +33,7 @@ public enum DLError: Error {
     case hasFatalDiagnostics
 }
 
-extension DLError : CustomStringConvertible {
+extension GPIRError : CustomStringConvertible {
     public var description: String {
         switch self {
         case .noInputFiles:

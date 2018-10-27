@@ -82,7 +82,7 @@ internal extension BasicBlock {
 internal extension Argument {
     func incomingValue(from bb: BasicBlock) -> Use {
         guard let index = parent.arguments.index(of: self) else {
-            DLImpossible(
+            GPIRImpossible(
                 "\(self) is not an argument of its parent '\(bb.printedName).")
         }
         let terminator = bb.premise.terminator

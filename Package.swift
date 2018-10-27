@@ -36,11 +36,10 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-package-manager",
-                 .branch("swift-4.1-branch")),
-        .package(url: "https://github.com/dlvm-team/CoreTensor", from: "0.7.2")
+                 .branch("master"))
     ],
     targets: [
-        .target(name: "GPIR", dependencies: ["CoreTensor"]),
+        .target(name: "GPIR"),
         .target(name: "GPParse", dependencies: ["GPIR"]),
         .target(name: "GPCommandLineTools", dependencies: [
             "Utility", "GPIR", "GPParse"

@@ -17,46 +17,15 @@
 //  limitations under the License.
 //
 
-public struct AdjointConfiguration : Equatable {
-    /// Function to differentiate.
-    let primal: Function
-    /// Index of tuple element to differentiate, when the return type is a
-    /// tuple; otherwise must be 0.
-    let sourceIndex: Int?
-    /// Indices of arguments to differentiate the function with respect to.
-    let argumentIndices: [Int]?
-    /// Indices of return values to kept in the adjoint function, when the
-    /// return type is a tuple; otherwise can be [0] or [].
-    let keptIndices: [Int]
-    /// Whether the adjoint function can take a back-propagated value as the
-    /// seed for reverse-mode AD.
-    let isSeedable: Bool
-
-    /// Create an adjoint configuration.
-    /// - Note: The type of the forward function must be consistent with the
-    ///         configuration.
-    public init(primal: Function, sourceIndex: Int?, argumentIndices: [Int]?,
-                keptIndices: [Int], isSeedable: Bool) {
-        self.primal = primal
-        self.sourceIndex = sourceIndex
-        self.argumentIndices = argumentIndices
-        self.keptIndices = keptIndices
-        self.isSeedable = isSeedable
-    }
-}
-
 public final class Function : IRCollection, IRUnit, NamedValue {
     public enum Attribute {
-        /// Inline the function during LLGen
+        /// To be inlined
         case inline
     }
 
     public enum DeclarationKind {
         /// Externally defined
         case external
-        /// Marks a function as the adjoint of another with given configuration.
-        /// To be materialized as a normally defined function by AD.
-        case adjoint(AdjointConfiguration)
     }
 
     public typealias Base = OrderedSet<BasicBlock>
@@ -181,63 +150,6 @@ public extension Function {
                 inst.substitute(newUse, for: oldUse)
             }
         }
-    }
-}
-
-public extension Function {
-    func adjointType(from sourceIndex: Int?,
-                      wrt argIndices: [Int]?,
-                      keeping keptIndices: [Int],
-                      seedable isSeedable: Bool) -> Type? {
-        var keptOutputs: [Type]
-        let sourceType: Type
-        /// Check output index
-        switch returnType {
-        /// Tuple output is treated as multiple-out
-        case let .tuple(elementTypes):
-            guard let sourceIndex = sourceIndex,
-                /// Source index must be in bounds
-                elementTypes.indices.contains(sourceIndex),
-                /// Element must be differentiable
-                elementTypes[sourceIndex].isDifferentiable,
-                /// Indices of the outputs to keep must be in bounds
-                let someOutputs = elementTypes
-                    .subcollection(atIndices: keptIndices),
-                /// Indices of the outputs to keep must not contain any
-                /// duplicate
-                !keptIndices.containsDuplicate
-                else { return nil }
-            sourceType = elementTypes[sourceIndex]
-            keptOutputs = someOutputs
-        /// Other output is treated as single-out
-        case _ where sourceIndex == nil
-                /// Result must be differentiable
-                && returnType.isDifferentiable
-                /// Indices of the outputs to keep must be either [] or [0]
-                && (keptIndices.isEmpty || keptIndices == [0]):
-            sourceType = returnType
-            keptOutputs = keptIndices.isEmpty ? [] : [returnType]
-        /// Bad differentiation case
-        default:
-            return nil
-        }
-        /// Check arguments
-        let argIndices = argIndices ?? Array(argumentTypes.indices)
-        guard
-            /// Indices of diff variables must be in bounds
-            let diffVars = argumentTypes.subcollection(atIndices: argIndices),
-            /// All diff variables must be diff'able arguments
-            diffVars.forAll({ $0.isDifferentiable })
-            else { return nil }
-        /// Result of differentiation has the same input types but different
-        /// output types Output type is `(k1, ..., kn, d1, ..., dn)` where
-        /// `k1...kn` are outputs of the original function to keep, `d1...dn`
-        /// are derivatives of the output at `sourceIndex` with respect to
-        /// arguments at indices `argIndices`, respectively.
-        return .function(
-            isSeedable ? argumentTypes + [sourceType] : argumentTypes,
-            .tuple(diffVars + keptOutputs)
-        )
     }
 }
 

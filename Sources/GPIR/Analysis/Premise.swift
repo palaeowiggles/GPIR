@@ -17,7 +17,7 @@
 //  limitations under the License.
 //
 
-public protocol PremiseHolder : IRUnit {
+public protocol PremiseHolder : IRCollection {
     associatedtype Premise
     /// - TODO: Add constraints here (currently causing compiler crash)
     associatedtype PremiseVerifier : VerificationPass

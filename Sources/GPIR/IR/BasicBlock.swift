@@ -147,17 +147,17 @@ public extension BasicBlock {
 // MARK: - Naming
 
 public extension Argument {
-    public var printedName: String {
+    var printedName: String {
         if let name = name {
             return name
         }
-        let selfIndex = parent.arguments.index(of: self) ?? DLImpossibleResult()
+        let selfIndex = parent.arguments.index(of: self) ?? GPIRImpossibleResult()
         return "\(parent.indexInParent)^\(selfIndex)"
     }
 }
 
 public extension BasicBlock {
-    public var printedName: String {
+    var printedName: String {
         return name ?? indexInParent.description
     }
 }

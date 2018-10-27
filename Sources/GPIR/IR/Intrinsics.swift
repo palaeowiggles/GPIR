@@ -18,10 +18,7 @@
 //
 
 public final class IntrinsicRegistry {
-    public static let global = IntrinsicRegistry(intrinsics: [
-        MeanIntrinsic.self, SoftmaxIntrinsic.self,
-        MinIntrinsic.self, MaxIntrinsic.self
-    ])
+    public static let global = IntrinsicRegistry(intrinsics: [])
 
     var registry: [String : Intrinsic.Type] = [:]
 
@@ -73,35 +70,36 @@ extension Intrinsic : Equatable {
 public class UnaryIntrinsic : Intrinsic {}
 public class BinaryIntrinsic : Intrinsic {}
 
+/*
 public class NumericUnaryIntrinsic : UnaryIntrinsic {
     public override class func resultType(for operands: [Use]) -> Type {
-        guard let first = operands.first, case let .tensor(s, dt) = first.type,
+        guard let first = operands.first, case let .scalar(dt) = first.type,
             dt.isNumeric else {
             return .invalid
         }
-        return .tensor(s, dt)
+        return .scalar(dt)
     }
 }
 
 public class FloatingPointUnaryIntrinsic : NumericUnaryIntrinsic {
     public override class func resultType(for operands: [Use]) -> Type {
-        guard let first = operands.first, case let .tensor(s, dt) = first.type,
+        guard let first = operands.first, case let .scalar(dt) = first.type,
             case .float = dt else {
             return .invalid
         }
-        return .tensor(s, dt)
+        return .scalar(dt)
     }
 }
 
 public class NumericBinaryIntrinsic : BinaryIntrinsic {
     public override class func resultType(for operands: [Use]) -> Type {
         guard operands.count == 2,
-            case let .tensor(s1, dt1) = operands[0].type,
-            case let .tensor(s2, dt2) = operands[1].type,
-            let bcShape = s1.broadcast(with: s2), dt1 == dt2, dt1.isNumeric else {
+            case let .scalar(dt1) = operands[0].type,
+            case let .scalar(dt2) = operands[1].type,
+            dt1 == dt2, dt1.isNumeric else {
             return .invalid
         }
-        return .tensor(bcShape, dt1)
+        return .scalar(dt1)
     }
 }
 
@@ -121,3 +119,4 @@ public class MinIntrinsic : NumericBinaryIntrinsic {
 public class MaxIntrinsic : NumericBinaryIntrinsic {
     public override class var opcode: String { return "max" }
 }
+*/

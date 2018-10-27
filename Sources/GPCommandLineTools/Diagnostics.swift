@@ -18,14 +18,3 @@
 //
 
 import Basic
-
-public struct RedundantDifferentiationFlagDiagnostic : DiagnosticData {
-    public static var id = DiagnosticID(
-        type: RedundantDifferentiationFlagDiagnostic.self,
-        name: "org.dlvm.diags.redundant-ad-flag",
-        defaultBehavior: .note,
-        description: {
-            $0 <<< "'AD' flag is redundant, differentiation pass is mandatory"
-        }
-    )
-}

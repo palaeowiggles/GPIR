@@ -24,13 +24,8 @@
 
 public indirect enum AlgebraicExpression {
     case atom(Use)
-    case map(NumericUnaryOp, AlgebraicExpression, Instruction)
-    case numericBinary(NumericBinaryOp,
-        AlgebraicExpression, AlgebraicExpression, Instruction)
     case booleanBinary(BooleanBinaryOp,
         AlgebraicExpression, AlgebraicExpression, Instruction)
-    case dot(AlgebraicExpression, AlgebraicExpression, Instruction)
-    case transpose(AlgebraicExpression, Instruction)
 }
 
 public struct AlgebraicRepresentation {
@@ -60,11 +55,7 @@ public extension AlgebraicExpression {
         switch self {
         case .atom(_):
             return nil
-        case .numericBinary(_, _, _, let inst),
-             .booleanBinary(_, _, _, let inst),
-             .dot(_, _, let inst),
-             .transpose(_, let inst),
-             .map(_, _, let inst):
+        case .booleanBinary(_, _, _, let inst):
             return inst
         }
     }
@@ -79,15 +70,9 @@ public extension AlgebraicExpression {
             switch expr {
             case .atom(_):
                 return
-            case let .numericBinary(_, lhs, rhs, inst),
-                 let .booleanBinary(_, lhs, rhs, inst),
-                 let .dot(lhs, rhs, inst):
+            case let .booleanBinary(_, lhs, rhs, inst):
                 remove(lhs)
                 remove(rhs)
-                inst.removeFromParent()
-            case let .transpose(x, inst),
-                 let .map(_, x, inst):
-                remove(x)
                 inst.removeFromParent()
             }
         }
@@ -97,11 +82,7 @@ public extension AlgebraicExpression {
     static prefix func % (expr: AlgebraicExpression) -> Use {
         switch expr {
         case .atom(let v): return v
-        case .map(_, _, let inst),
-             .dot(_, _, let inst),
-             .transpose(_, let inst),
-             .numericBinary(_, _, _, let inst),
-             .booleanBinary(_, _, _, let inst):
+        case .booleanBinary(_, _, _, let inst):
             return %inst
         }
     }
@@ -130,10 +111,6 @@ public extension AlgebraicExpression {
         return value.makeLiteral(literal, using: builder)
     }
 
-    func makeScalar(_ scalar: Literal.Scalar) -> LiteralValue {
-        return value.makeScalar(scalar)
-    }
-
     var isAtom: Bool {
         switch self {
         case .atom(_): return true
@@ -154,12 +131,7 @@ extension AlgebraicExpression : BackwardGraphNode {
         switch self {
         case .atom(_):
             return []
-        case .map(_, let x, _),
-             .transpose(let x, _):
-            return [x]
-        case .dot(let x, let y, _),
-             .numericBinary(_, let x, let y, _),
-             .booleanBinary(_, let x, let y, _):
+        case .booleanBinary(_, let x, let y, _):
             return [x, y]
         }
     }
@@ -184,14 +156,6 @@ extension AlgebraicExpression : CustomStringConvertible {
         switch self {
         case let .atom(x):
             return "[\(x)]"
-        case let .map(op, exp, _):
-            return "(\(op) \(exp))"
-        case let .dot(lhs, rhs, _):
-            return "(dot \(lhs) \(rhs))"
-        case let .transpose(exp, _):
-            return "(transpose \(exp))"
-        case let .numericBinary(op, lhs, rhs, _):
-            return "(\(op) \(lhs) \(rhs))"
         case let .booleanBinary(op, lhs, rhs, _):
             return "(\(op) \(lhs) \(rhs))"
         }
@@ -225,19 +189,9 @@ open class AlgebraicExpressionAnalysis : AnalysisPass {
             /// DFS from math instructions
             let expr: AlgebraicExpression
             switch inst.kind {
-            case let .numericUnary(op, v):
-                expr = .map(op, subexpression(from: v), inst)
-            case let .numericBinary(op, lhs, rhs):
-                expr = .numericBinary(op, subexpression(from: lhs),
-                                subexpression(from: rhs), inst)
             case let .booleanBinary(op, lhs, rhs):
                 expr = .booleanBinary(op, subexpression(from: lhs),
                                       subexpression(from: rhs), inst)
-            case let .dot(lhs, rhs):
-                expr = .dot(subexpression(from: lhs),
-                            subexpression(from: rhs), inst)
-            case let .transpose(v):
-                expr = .transpose(subexpression(from: v), inst)
             default:
                 expr = .atom(use)
             }

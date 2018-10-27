@@ -22,6 +22,6 @@ open class StackPromotion : TransformPass {
     public typealias Body = Function
 
     open class func run(on body: Function) -> Bool {
-        DLUnimplemented()
+        GPIRUnimplemented()
     }
 }

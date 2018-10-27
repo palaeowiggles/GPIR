@@ -1,6 +1,6 @@
 //
 //  main.swift
-//  dlopt
+//  gpir-opt
 //
 //  Copyright 2018 The GPIR Team.
 //
@@ -29,12 +29,12 @@ class OptToolOptions : ToolOptions {
     var noVerify = false
 }
 
-class DLOptTool : CommandLineTool<OptToolOptions> {
+class GPIROptTool : CommandLineTool<OptToolOptions> {
     public convenience init(args: [String]) {
         self.init(
-            name: "dlopt",
+            name: "gpir-opt",
             usage: "<inputs> [options]",
-            overview: "DLVM IR optimizer",
+            overview: "GPIR optimizer",
             arguments: args
         )
     }
@@ -43,7 +43,7 @@ class DLOptTool : CommandLineTool<OptToolOptions> {
         let outputPaths = options.outputPaths
         if let outputPaths = outputPaths {
             guard outputPaths.count == options.inputFiles.count else {
-                throw DLError.inputOutputCountMismatch
+                throw GPIRError.inputOutputCountMismatch
             }
         }
 
@@ -52,7 +52,7 @@ class DLOptTool : CommandLineTool<OptToolOptions> {
         // Error should indicate raw string argument, not the corresponding
         // path.
         if let invalidFile = options.inputFiles.first(where: { !isFile($0) }) {
-            throw DLError.invalidInputFile(invalidFile)
+            throw GPIRError.invalidInputFile(invalidFile)
         }
 
         for (i, inputFile) in options.inputFiles.enumerated() {
@@ -62,8 +62,6 @@ class DLOptTool : CommandLineTool<OptToolOptions> {
             let module = try Module.parsed(fromFile: inputFile.asString)
 
             /// Run passes
-            try runPass(.differentiation, on: module,
-                        bypassingVerification: options.noVerify)
             if let passes = options.passes {
                 for pass in passes {
                     try runPass(pass, on: module,
@@ -97,5 +95,5 @@ class DLOptTool : CommandLineTool<OptToolOptions> {
     }
 }
 
-let tool = DLOptTool(args: Array(CommandLine.arguments.dropFirst()))
+let tool = GPIROptTool(args: Array(CommandLine.arguments.dropFirst()))
 tool.runAndDiagnose()

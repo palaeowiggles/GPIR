@@ -17,27 +17,18 @@
 //  limitations under the License.
 //
 
-import CoreTensor
-
-/// Padding type, used for operations involving windows (convolve, reduceWindow)
-public enum Padding : Equatable {
-    case none
-    case half
-    case full
-}
-
 protocol NominalType : HashableByReference {
     var name: String { get }
 }
 
-/// Element key to form a key path in GEP and use
+/// Element key to form a key path in GEP and use.
 public enum ElementKey : Equatable {
     case index(Int)
     case name(String)
     case value(Use)
 }
 
-/// Struct type
+/// Struct type.
 public class StructType : NominalType {
     public typealias Field = (name: String, type: Type)
     public var name: String
@@ -82,7 +73,7 @@ public extension StructType {
     }
 }
 
-/// Enum type
+/// Enum type.
 public class EnumType : NominalType {
     public typealias Case = (name: String, associatedTypes: [Type])
     public var name: String
@@ -116,7 +107,7 @@ public extension EnumType {
     }
 }
 
-/// Type alias
+/// Type alias.
 public class TypeAlias : NominalType {
     public var name: String
     public var type: Type?
@@ -137,33 +128,24 @@ public extension TypeAlias {
     }
 }
 
-/// Type of IR values
+/// Type of IR values.
 public indirect enum Type {
-    /// Tensor represents all scalars, vectors, matrices and higher
-    /// dimensional matrices of primitive data type
-    /// - Note: A tensor is transparent to LLVM as a multi-dimensional array,
-    /// or in some cases a vector. LLGen target decides this.
-    case tensor(TensorShape, DataType)
-    /// Fixed sized array
-    case array(Int, Type)
-    /// N-ary tuple, corresponding to LLVM unpacked struct type
+    /// Scalar boolean. Used as condition in control flow instruction.
+    case bool
+    /// N-ary tuple.
     case tuple([Type])
-    /// Struct, corresponding to LLVM struct type
+    /// Struct.
     case `struct`(StructType)
-    /// Enum type
+    /// Enum.
     case `enum`(EnumType)
-    /// Pointer
+    /// Pointer.
+    /// TODO: Consider if we need this.
     case pointer(Type)
-    /// Reference counted box
-    case box(Type)
     /// Function type
     case function([Type], Type)
-    /// Stack type, used for automatic differentiation
-    case stack
-    /// Alias type, transparent or opaque
+    /// Alias type, transparent or opaque.
     case alias(TypeAlias)
-    /// Invalid type during type inference, to be eliminated by
-    /// the verifier
+    /// Invalid type during type inference, to be eliminated by the verifier.
     case invalid
 }
 
@@ -174,22 +156,6 @@ public extension Type {
         return .tuple([])
     }
 
-    static func int(_ size: UInt) -> Type {
-        return .scalar(.int(size))
-    }
-
-    static func float(_ size: FloatingPointSize) -> Type {
-        return .scalar(.float(size))
-    }
-
-    static var bool: Type {
-        return .scalar(.bool)
-    }
-
-    static func scalar(_ dataType: DataType) -> Type {
-        return .tensor(.scalar, dataType)
-    }
-
     var pointer: Type {
         return .pointer(self)
     }
@@ -197,35 +163,12 @@ public extension Type {
     static prefix func * (type: Type) -> Type {
         return type.pointer
     }
-
-    static func * (count: Int, elementType: Type) -> Type {
-        return .array(count, elementType)
-    }
-
-    var tensorType: TensorType? {
-        guard case let .tensor(s, dt) = canonical else { return nil }
-        return (s, dt)
-    }
 }
 
 public extension Type {
     var isFirstClass: Bool {
         switch canonical {
-        case .tensor, .array, .tuple, .pointer, .box, .alias: return true
-        default: return false
-        }
-    }
-
-    var isTensor: Bool {
-        switch canonical {
-        case .tensor: return true
-        default: return false
-        }
-    }
-
-    var isScalar: Bool {
-        switch canonical {
-        case .tensor([], _): return true
+        case .tuple, .pointer, .alias: return true
         default: return false
         }
     }
@@ -261,7 +204,6 @@ public extension Type {
         default: return false
         }
     }
-
 }
 
 public extension Type {
@@ -272,10 +214,6 @@ public extension Type {
         case let (.struct(structTy), .name(_)):
             guard let ty = structTy.elementType(at: key) else { return nil }
             return ty
-        case let (.tensor(shape, dt), .index(i)) where shape.rank > 0 && i < shape[0]:
-            return .tensor(shape.dropFirst(), dt)
-        case let (.array(n, t), .index(i)) where i < n:
-            return t
         case let (.pointer(t), .index(_)),
              let (.pointer(t), .value(_)):
             return t
@@ -294,13 +232,11 @@ public extension Type {
 public extension Type {
     var canonical: Type {
         switch self {
-        case let .array(i, subT): return .array(i, subT.canonical)
         case let .tuple(tt): return .tuple(tt.map{$0.canonical})
         case let .pointer(t): return .pointer(t.canonical)
-        case let .box(t): return .box(t.canonical)
         case let .function(tt, t): return .function(tt.map{$0.canonical}, t.canonical)
         case let .alias(alias): return alias.type?.canonical ?? self
-        case .tensor, .struct, .enum, .stack, .invalid: return self
+        case .bool, .struct, .enum, .invalid: return self
         }
     }
 
@@ -310,43 +246,26 @@ public extension Type {
         }
         return self
     }
-
-    var isDifferentiable: Bool {
-        switch self {
-        // TODO: add stack
-        case let .tensor(_, dt) where dt.isNumeric:
-            return true
-        default:
-            return false
-        }
-    }
 }
 
 extension Type : Equatable {
     public static func ==(lhs: Type, rhs: Type) -> Bool {
         switch (lhs.canonical, rhs.canonical) {
-        case (.invalid, .invalid):
+        case (.invalid, .invalid),
+             (.bool, .bool):
             return true
-        case let (.tensor(s1, t1), .tensor(s2, t2)):
-            return s1 == s2 && t1 == t2
         case let (.tuple(ts1), .tuple(ts2)):
             return ts1 == ts2
         case let (.struct(s1), .struct(s2)):
             return s1 === s2
         case let (.enum(s1), .enum(s2)):
             return s1 === s2
-        case let (.array(t1, n1), .array(t2, n2)):
-            return t1 == t2 && n1 == n2
         case let (.pointer(t1), .pointer(t2)):
-            return t1 == t2
-        case let (.box(t1), .box(t2)):
             return t1 == t2
         case let (.function(tt1, t1), .function(tt2, t2)):
             return tt1 == tt2 && t1 == t2
         case let (.alias(a1), .alias(a2)) where a1.isOpaque && a2.isOpaque:
             return a1.name == a2.name
-        case (.stack, .stack):
-            return true
         default:
             return false
         }
@@ -366,15 +285,13 @@ public extension EnumType {
 }
 
 public extension Type {
-    public var isValid: Bool {
+    var isValid: Bool {
         switch self {
         case .invalid:
             return false
-        case .tensor, .void, .stack:
+        case .bool, .void:
             return true
-        case let .array(_, elementType),
-             let .pointer(elementType),
-             let .box(elementType):
+        case let .pointer(elementType):
             return elementType.isValid
         case let .tuple(elementTypes):
             return elementTypes.forAll { $0.isValid }
@@ -391,13 +308,13 @@ public extension Type {
 }
 
 public extension TypeAlias {
-    public var isValid: Bool {
+    var isValid: Bool {
         return type?.isValid ?? true
     }
 }
 
 public extension Type {
-    public func makeZero() -> LiteralValue {
+    func makeZero() -> LiteralValue {
         return LiteralValue(type: self, literal: .zero)
     }
 }

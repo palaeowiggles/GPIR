@@ -17,8 +17,6 @@
 //  limitations under the License.
 //
 
-import CoreTensor
-
 /// Value base
 public protocol Value : Verifiable {
     var type: Type { get }

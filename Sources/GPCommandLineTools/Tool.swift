@@ -97,12 +97,8 @@ open class CommandLineTool<Options : ToolOptions> {
             let result = try parser.parse(arguments)
             // Fill and set options.
             var options = Options()
-            binder.fill(result, into: &options)
-            // Validate options.
-            if let passes = options.passes, passes.contains(.differentiation) {
-                printDiagnostic(RedundantDifferentiationFlagDiagnostic())
-                options.passes?.remove(.differentiation)
-            }
+            try binder.fill(parseResult: result, into: &options)
+            // Validate options. Currently nothing.
             self.options = options
         } catch {
             handleError(error)

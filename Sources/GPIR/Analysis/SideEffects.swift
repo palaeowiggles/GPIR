@@ -43,8 +43,6 @@ public struct SideEffectInfo {
         switch instruction.kind {
         case .trap:
             return .mayTrap
-        case _ where instruction.kind.mustWriteToMemory:
-            return .mayWriteToMemory
         case .apply(.definition(.function(let callee)), _):
             return self[callee]
         default:
@@ -68,9 +66,6 @@ open class SideEffectAnalysis : AnalysisPass {
             var props: SideEffectProperties = []
             for inst in function.instructions {
                 /// Check instructions that definitely have side effects
-                if inst.kind.mustWriteToMemory {
-                    props.insert(.mayWriteToMemory)
-                }
                 if inst.kind.isTrap {
                     props.insert(.mayTrap)
                 }
