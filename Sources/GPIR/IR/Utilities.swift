@@ -1,8 +1,8 @@
 //
 //  Utilities.swift
-//  DLVM
+//  GPIR
 //
-//  Copyright 2016-2018 The DLVM Team.
+//  Copyright 2018 The GPIR Team.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -19,23 +19,23 @@
 
 import Foundation
 
-func DLUnimplemented(_ function: String = #function,
-                     file: StaticString = #file,
-                     line: UInt = #line) -> Never {
+func GPIRUnimplemented(_ function: String = #function,
+                       file: StaticString = #file,
+                       line: UInt = #line) -> Never {
     fatalError("\(function) is not fully implemented.", file: file, line: line)
 }
 
-func DLImpossible(_ function: String = #function,
-                  file: StaticString = #file,
-                  line: UInt = #line) -> Never {
+func GPIRImpossible(_ function: String = #function,
+                    file: StaticString = #file,
+                    line: UInt = #line) -> Never {
     fatalError("Impossible case at \(function). Must be a compiler bug.",
                file: file, line: line)
 }
 
 @discardableResult
-func DLImpossibleResult<T>(function: String = #function,
-                           file: StaticString = #file,
-                           line: UInt = #line) -> T {
+func GPIRImpossibleResult<T>(function: String = #function,
+                             file: StaticString = #file,
+                             line: UInt = #line) -> T {
     fatalError("Impossible case \(T.self) at \(function). Must be a compiler bug.",
                file: file, line: line)
 }

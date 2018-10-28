@@ -1,8 +1,8 @@
 //
 //  IRBuilder.swift
-//  DLVM
+//  GPIR
 //
-//  Copyright 2016-2018 The DLVM Team.
+//  Copyright 2018 The GPIR Team.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -16,8 +16,6 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 //
-
-import CoreTensor
 
 open class IRBuilder {
     public let module: Module
@@ -207,137 +205,13 @@ public extension IRBuilder {
         return buildInstruction(.literal(literal, type))
     }
 
-    func numeric(_ operation: NumericUnaryOp, _ use: Use) -> Instruction {
-        return buildInstruction(.numericUnary(operation, use))
-    }
-
-    func numeric(_ operation: NumericBinaryOp,
-                 _ lhs: Use, _ rhs: Use) -> Instruction {
-        return buildInstruction(.numericBinary(operation, lhs, rhs))
-    }
-
     func boolean(_ operation: BooleanBinaryOp,
                  _ lhs: Use, _ rhs: Use) -> Instruction {
         return buildInstruction(.booleanBinary(operation, lhs, rhs))
     }
 
-    func exp(_ use: Use) -> Instruction {
-        return buildInstruction(.numericUnary(.exp, use))
-    }
-
-    func log(_ use: Use) -> Instruction {
-        return buildInstruction(.numericUnary(.log, use))
-    }
-
-    func add(_ lhs: Use, _ rhs: Use) -> Instruction {
-        return buildInstruction(.numericBinary(.add, lhs, rhs))
-    }
-
-    func subtract(_ lhs: Use, _ rhs: Use) -> Instruction {
-        return buildInstruction(.numericBinary(.subtract, lhs, rhs))
-    }
-
-    func multiply(_ lhs: Use, _ rhs: Use) -> Instruction {
-        return buildInstruction(.numericBinary(.multiply, lhs, rhs))
-    }
-
-    func divide(_ lhs: Use, _ rhs: Use) -> Instruction {
-        return buildInstruction(.numericBinary(.divide, lhs, rhs))
-    }
-
-    func modulo(_ lhs: Use, _ rhs: Use) -> Instruction {
-        return buildInstruction(.numericBinary(.modulo, lhs, rhs))
-    }
-
-    func power(_ lhs: Use, _ rhs: Use) -> Instruction {
-        return buildInstruction(.numericBinary(.power, lhs, rhs))
-    }
-
     func not(_ operand: Use) -> Instruction {
         return buildInstruction(.not(operand))
-    }
-
-    func compare(_ operator: ComparisonOp,
-                 _ lhs: Use, _ rhs: Use) -> Instruction {
-        return buildInstruction(.compare(`operator`, lhs, rhs))
-    }
-
-    func dataTypeCast(_ source: Use,
-                      to targetDataType: DataType) -> Instruction {
-        return buildInstruction(.dataTypeCast(source, targetDataType))
-    }
-
-    func scan(_ comb: ReductionCombinator, _ use: Use,
-              dims: [Int]) -> Instruction {
-        return buildInstruction(.scan(comb, use, dims: dims))
-    }
-
-    func reduce(_ comb: ReductionCombinator, _ use: Use, initial: Use,
-                dims: [Int]) -> Instruction {
-        return buildInstruction(
-            .reduce(comb, use, initial: initial, dims: dims))
-    }
-
-    func dot(_ lhs: Use, _ rhs: Use) -> Instruction {
-        return buildInstruction(.dot(lhs, rhs))
-    }
-
-    func concatenate(_ uses: [Use], axis: Int) -> Instruction {
-        return buildInstruction(.concatenate(uses, axis: axis))
-    }
-
-    func transpose(_ use: Use) -> Instruction {
-        return buildInstruction(.transpose(use))
-    }
-
-    func reverse(_ use: Use, dims: [Int]) -> Instruction {
-        return buildInstruction(.reverse(use, dims: dims))
-    }
-
-    func slice(_ use: Use,
-               at bounds: CountableClosedRange<Int>) -> Instruction {
-        return buildInstruction(.slice(use, at: bounds))
-    }
-
-    func random(_ shape: TensorShape, from lo: Use,
-                upTo hi: Use) -> Instruction {
-        return buildInstruction(.random(shape, from: lo, upTo: hi))
-    }
-
-    func select(_ lhs: Use, rhs: Use, by flags: Use) -> Instruction {
-        return buildInstruction(.select(lhs, rhs, by: flags))
-    }
-
-    func convolve(_ use: Use, kernel: Use, strides: [Int]?,
-                  padding: [(low: Int, high: Int)]?, leftDilation ld: [Int],
-                  rightDilation rd: [Int], groups: Int?) -> Instruction {
-        return buildInstruction(
-            .convolve(use, kernel: kernel, strides: strides, padding: padding,
-                      leftDilation: ld, rightDilation: rd, groups: groups))
-    }
-
-    func reduceWindow(_ comb: ReductionCombinator, _ use: Use, initial: Use,
-                      dims: [Int], strides: [Int],
-                      padding: Padding) -> Instruction {
-        return buildInstruction(
-            .reduceWindow(comb, use, initial: initial, dims: dims,
-                          strides: strides, padding: padding))
-    }
-
-    func padShape(_ source: Use, at dimension: Int) -> Instruction {
-        return buildInstruction(.padShape(source, at: dimension))
-    }
-
-    func squeezeShape(_ source: Use, at dimension: Int) -> Instruction {
-        return buildInstruction(.squeezeShape(source, at: dimension))
-    }
-
-    func shapeCast(_ source: Use, to targetShape: TensorShape) -> Instruction {
-        return buildInstruction(.shapeCast(source, to: targetShape))
-    }
-
-    func bitCast(_ source: Use, to targetType: Type) -> Instruction {
-        return buildInstruction(.bitCast(source, to: targetType))
     }
 
     func extract(from source: Use, at indices: [ElementKey]) -> Instruction {
@@ -351,50 +225,6 @@ public extension IRBuilder {
 
     func apply(_ function: Use, _ arguments: [Use]) -> Instruction {
         return buildInstruction(.apply(function, arguments))
-    }
-
-    func createStack() -> Instruction {
-        return buildInstruction(.createStack)
-    }
-
-    @discardableResult
-    func destroyStack(_ stack: Use) -> Instruction {
-        return buildInstruction(.destroyStack(stack))
-    }
-
-    @discardableResult
-    func push(_ use: Use, to stack: Use) -> Instruction {
-        return buildInstruction(.push(use, to: stack))
-    }
-
-    func pop(_ type: Type, from stack: Use) -> Instruction {
-        return buildInstruction(.pop(type, from: stack))
-    }
-
-    func allocateHeap(for type: Type, count: Use) -> Instruction {
-        return buildInstruction(.allocateHeap(type, count: count))
-    }
-
-    func allocateBox(for type: Type) -> Instruction {
-        return buildInstruction(.allocateBox(type))
-    }
-
-    func projectBox(_ box: Use) -> Instruction {
-        return buildInstruction(.projectBox(box))
-    }
-
-    @discardableResult
-    func deallocate(_ use: Use) -> Instruction {
-        return buildInstruction(.deallocate(use))
-    }
-
-    func load(from source: Use) -> Instruction {
-        return buildInstruction(.load(source))
-    }
-
-    @discardableResult
-    func store(_ source: Use, to destination: Use) -> Instruction {
-        return buildInstruction(.store(source, to: destination))
     }
 
     func elementPointer(from source: Use,

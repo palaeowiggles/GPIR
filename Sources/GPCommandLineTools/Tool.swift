@@ -1,8 +1,8 @@
 //
 //  Tool.swift
-//  DLCommandLineTools
+//  GPCommandLineTools
 //
-//  Copyright 2016-2018 The DLVM Team.
+//  Copyright 2018 The GPIR Team.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ open class CommandLineTool<Options : ToolOptions> {
         binder.bindArray(
             positional: parser.add(positional: "input files",
                                    kind: [PathArgument].self,
-                                   usage: "DLVM IR input files"),
+                                   usage: "GPVM IR input files"),
             to: { $0.inputFiles = $1.lazy.map({ $0.path }) }
         )
 
@@ -97,12 +97,8 @@ open class CommandLineTool<Options : ToolOptions> {
             let result = try parser.parse(arguments)
             // Fill and set options.
             var options = Options()
-            binder.fill(result, into: &options)
-            // Validate options.
-            if let passes = options.passes, passes.contains(.differentiation) {
-                printDiagnostic(RedundantDifferentiationFlagDiagnostic())
-                options.passes?.remove(.differentiation)
-            }
+            try binder.fill(parseResult: result, into: &options)
+            // Validate options. Currently nothing.
             self.options = options
         } catch {
             handleError(error)

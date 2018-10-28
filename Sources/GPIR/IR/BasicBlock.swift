@@ -1,8 +1,8 @@
 //
 //  BasicBlock.swift
-//  DLVM
+//  GPIR
 //
-//  Copyright 2016-2018 The DLVM Team.
+//  Copyright 2018 The GPIR Team.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -147,17 +147,17 @@ public extension BasicBlock {
 // MARK: - Naming
 
 public extension Argument {
-    public var printedName: String {
+    var printedName: String {
         if let name = name {
             return name
         }
-        let selfIndex = parent.arguments.index(of: self) ?? DLImpossibleResult()
+        let selfIndex = parent.arguments.index(of: self) ?? GPIRImpossibleResult()
         return "\(parent.indexInParent)^\(selfIndex)"
     }
 }
 
 public extension BasicBlock {
-    public var printedName: String {
+    var printedName: String {
         return name ?? indexInParent.description
     }
 }

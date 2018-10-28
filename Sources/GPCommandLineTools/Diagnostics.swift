@@ -1,8 +1,8 @@
 //
 //  Diagnostics.swift
-//  DLCommandLineTools
+//  GPCommandLineTools
 //
-//  Copyright 2016-2018 The DLVM Team.
+//  Copyright 2018 The GPIR Team.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -18,14 +18,3 @@
 //
 
 import Basic
-
-public struct RedundantDifferentiationFlagDiagnostic : DiagnosticData {
-    public static var id = DiagnosticID(
-        type: RedundantDifferentiationFlagDiagnostic.self,
-        name: "org.dlvm.diags.redundant-ad-flag",
-        defaultBehavior: .note,
-        description: {
-            $0 <<< "'AD' flag is redundant, differentiation pass is mandatory"
-        }
-    )
-}

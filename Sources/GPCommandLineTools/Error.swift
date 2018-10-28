@@ -1,8 +1,8 @@
 //
 //  Error.swift
-//  DLCommandLineTools
+//  GPCommandLineTools
 //
-//  Copyright 2016-2018 The DLVM Team.
+//  Copyright 2018 The GPIR Team.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import Foundation
 import Basic
 import Utility
 
-public enum DLError: Error {
+public enum GPIRError: Error {
     /// No input files were specified.
     case noInputFiles
     /// An input file is invalid.
@@ -33,7 +33,7 @@ public enum DLError: Error {
     case hasFatalDiagnostics
 }
 
-extension DLError : CustomStringConvertible {
+extension GPIRError : CustomStringConvertible {
     public var description: String {
         switch self {
         case .noInputFiles:

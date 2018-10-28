@@ -1,8 +1,8 @@
 //
 //  Use.swift
-//  DLVM
+//  GPIR
 //
-//  Copyright 2016-2018 The DLVM Team.
+//  Copyright 2018 The GPIR Team.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -30,10 +30,6 @@ public extension Use {
         case let .definition(x):
             return x.type
         }
-    }
-
-    var tensorType: TensorType? {
-        return type.tensorType
     }
 
     var value: Value {

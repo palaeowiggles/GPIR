@@ -1,8 +1,8 @@
 //
 //  TransformUtilities.swift
-//  DLVM
+//  GPIR
 //
-//  Copyright 2016-2018 The DLVM Team.
+//  Copyright 2018 The GPIR Team.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -82,7 +82,7 @@ internal extension BasicBlock {
 internal extension Argument {
     func incomingValue(from bb: BasicBlock) -> Use {
         guard let index = parent.arguments.index(of: self) else {
-            DLImpossible(
+            GPIRImpossible(
                 "\(self) is not an argument of its parent '\(bb.printedName).")
         }
         let terminator = bb.premise.terminator

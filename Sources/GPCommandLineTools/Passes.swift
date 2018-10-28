@@ -1,8 +1,8 @@
 //
 //  Passes.swift
-//  DLCommandLineTools
+//  GPCommandLineTools
 //
-//  Copyright 2016-2018 The DLVM Team.
+//  Copyright 2018 The GPIR Team.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -21,16 +21,13 @@ import GPIR
 import protocol Utility.StringEnumArgument
 import enum Utility.ShellCompletion
 
-public enum TransformPass: String {
+public enum TransformPass: String, CaseIterable {
     case algebraSimplification = "AlgebraSimplification"
     case cfgCanonicalization = "CFGCanonicalization"
     case cfgSimplification = "CFGSimpliciation"
     case commonSubexpressionElimination = "CommonSubexpressionElimination"
     case deadCodeElimination = "DeadCodeElimination"
-    case differentiation = "Differentiation"
-    case linearAlgebraFusion = "LinearAlgebraFusion"
     case literalBroadcastingPromotion = "LiteralBroadcastingPromotion"
-    case matrixMultiplicationReordering = "MatrixMultiplicationReordering"
     case stackPromotion = "StackPromotion"
     case valuePromotion = "ValuePromotion"
 }
@@ -43,10 +40,7 @@ public extension TransformPass {
         case .cfgSimplification: return "CFGSimp"
         case .commonSubexpressionElimination: return "CSE"
         case .deadCodeElimination: return "DCE"
-        case .differentiation: return "AD"
-        case .linearAlgebraFusion: return "LAF"
         case .literalBroadcastingPromotion: return "LBP"
-        case .matrixMultiplicationReordering: return "MMR"
         case .stackPromotion: return "SP"
         case .valuePromotion: return "VP"
         }
@@ -60,12 +54,8 @@ public extension TransformPass {
         case .commonSubexpressionElimination:
             return "common subexpression elimination"
         case .deadCodeElimination: return "dead code elimination"
-        case .differentiation: return "differentiation"
-        case .linearAlgebraFusion: return "linear algebra fusion"
         case .literalBroadcastingPromotion:
             return "literal broadcasting promotion"
-        case .matrixMultiplicationReordering:
-            return "matrix multiplication reordering"
         case .stackPromotion: return "stack promotion"
         case .valuePromotion: return "value promotion"
         }
@@ -74,73 +64,20 @@ public extension TransformPass {
     // NOTE: Can be shortened with enum iteration
     init?(rawValue: String) {
         typealias T = TransformPass
-        switch rawValue {
-        case T.algebraSimplification.abbreviation,
-             T.algebraSimplification.rawValue:
-            self = .algebraSimplification
-        case T.cfgCanonicalization.abbreviation,
-             T.cfgCanonicalization.rawValue:
-            self = .cfgCanonicalization
-        case T.cfgSimplification.abbreviation,
-             T.cfgSimplification.rawValue:
-            self = .cfgSimplification
-        case T.commonSubexpressionElimination.abbreviation,
-             T.commonSubexpressionElimination.rawValue:
-            self = .commonSubexpressionElimination
-        case T.deadCodeElimination.abbreviation,
-             T.deadCodeElimination.rawValue:
-            self = .deadCodeElimination
-        case T.differentiation.abbreviation,
-             T.differentiation.rawValue:
-            self = .differentiation
-        case T.linearAlgebraFusion.abbreviation,
-             T.linearAlgebraFusion.rawValue:
-            self = .linearAlgebraFusion
-        case T.literalBroadcastingPromotion.abbreviation,
-             T.literalBroadcastingPromotion.rawValue:
-            self = .literalBroadcastingPromotion
-        case T.matrixMultiplicationReordering.abbreviation,
-             T.matrixMultiplicationReordering.rawValue:
-            self = .matrixMultiplicationReordering
-        case T.stackPromotion.abbreviation,
-             T.stackPromotion.rawValue:
-            self = .stackPromotion
-        case T.valuePromotion.abbreviation,
-             T.valuePromotion.rawValue:
-            self = .valuePromotion
-        default:
-            return nil
+        for transform in TransformPass.allCases {
+            if rawValue == transform.abbreviation ||
+                rawValue == transform.rawValue {
+                self = transform
+                return
+            }
         }
+        return nil
     }
 }
 
 extension TransformPass : StringEnumArgument {
     public static var completion: ShellCompletion {
-        // NOTE: Can be shortened with enum iteration
-        return .values([
-            (algebraSimplification.abbreviation,
-             algebraSimplification.description),
-            (cfgCanonicalization.abbreviation,
-             cfgCanonicalization.description),
-            (cfgSimplification.abbreviation,
-             cfgSimplification.description),
-            (commonSubexpressionElimination.abbreviation,
-             commonSubexpressionElimination.description),
-            (deadCodeElimination.abbreviation,
-             deadCodeElimination.description),
-            (differentiation.abbreviation,
-             differentiation.description),
-            (linearAlgebraFusion.abbreviation,
-             linearAlgebraFusion.description),
-            (literalBroadcastingPromotion.abbreviation,
-             literalBroadcastingPromotion.description),
-            (matrixMultiplicationReordering.abbreviation,
-             matrixMultiplicationReordering.description),
-            (stackPromotion.abbreviation,
-             stackPromotion.description),
-            (valuePromotion.abbreviation,
-             valuePromotion.description)
-        ])
+        return .values(allCases.map { ($0.abbreviation, $0.description) })
     }
 }
 
@@ -163,17 +100,8 @@ public func runPass(_ pass: TransformPass, on module: Module,
     case .deadCodeElimination:
         changed = module.mapTransform(DeadCodeElimination.self,
                                       bypassingVerification: noVerify)
-    case .differentiation:
-        changed = module.applyTransform(Differentiation.self,
-                                        bypassingVerification: noVerify)
-    case .linearAlgebraFusion:
-        changed = module.mapTransform(LinearAlgebraFusion.self,
-                                      bypassingVerification: noVerify)
     case .literalBroadcastingPromotion:
         changed = module.mapTransform(LiteralBroadcastingPromotion.self,
-                                      bypassingVerification: noVerify)
-    case .matrixMultiplicationReordering:
-        changed = module.mapTransform(MatrixMultiplicationReordering.self,
                                       bypassingVerification: noVerify)
     case .stackPromotion:
         changed = module.mapTransform(StackPromotion.self,

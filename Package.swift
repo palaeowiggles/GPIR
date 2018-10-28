@@ -3,7 +3,7 @@
 //  Package.swift
 //  GPIR
 //
-//  Copyright 2016-2018 The DLVM Team.
+//  Copyright 2018 The GPIR Team.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -36,11 +36,10 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-package-manager",
-                 .branch("swift-4.1-branch")),
-        .package(url: "https://github.com/dlvm-team/CoreTensor", from: "0.7.2")
+                 .branch("master"))
     ],
     targets: [
-        .target(name: "GPIR", dependencies: ["CoreTensor"]),
+        .target(name: "GPIR"),
         .target(name: "GPParse", dependencies: ["GPIR"]),
         .target(name: "GPCommandLineTools", dependencies: [
             "Utility", "GPIR", "GPParse"

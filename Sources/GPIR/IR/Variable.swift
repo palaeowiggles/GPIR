@@ -1,8 +1,8 @@
 //
 //  Variable.swift
-//  DLVM
+//  GPIR
 //
-//  Copyright 2016-2018 The DLVM Team.
+//  Copyright 2018 The GPIR Team.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ extension Variable : Value {
 public extension Variable {
     var printedName: String {
         if let name = name { return name }
-        let selfIndex = parent.variables.index(of: self) ?? DLImpossibleResult()
+        let selfIndex = parent.variables.index(of: self) ?? GPIRImpossibleResult()
         return selfIndex.description
     }
 }

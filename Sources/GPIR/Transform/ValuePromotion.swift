@@ -1,8 +1,8 @@
 //
 //  ValuePromotion.swift
-//  DLVM
+//  GPIR
 //
-//  Copyright 2016-2018 The DLVM Team.
+//  Copyright 2018 The GPIR Team.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -21,6 +21,6 @@
 open class ValuePromotion : TransformPass {
     public typealias Body = Function
     open class func run(on body: Function) -> Bool {
-        DLUnimplemented()
+        GPIRUnimplemented()
     }
 }

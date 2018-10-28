@@ -1,8 +1,8 @@
 //
 //  ParseError.swift
-//  DLVM
+//  GPIR
 //
-//  Copyright 2016-2018 The DLVM Team.
+//  Copyright 2018 The GPIR Team.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -261,50 +261,16 @@ extension Opcode : CustomStringConvertible {
         case .branch: return "branch"
         case .conditional: return "condition"
         case .return: return "return"
-        case .dataTypeCast: return "dataTypeCast"
-        case .scan: return "scan"
-        case .reduce: return "reduce"
-        case .reduceWindow: return "reduceWindow"
-        case .dot: return "dot"
-        case .concatenate: return "concatenate"
-        case .transpose: return "transpose"
-        case .reverse: return "reverse"
-        case .slice: return "slice"
-        case .convolve: return "convolve"
-        case .rank: return "rank"
-        case .shape: return "shape"
-        case .unitCount: return "unitCount"
-        case .padShape: return "padShape"
-        case .squeezeShape: return "squeezeShape"
-        case .shapeCast: return "shapeCast"
-        case .bitCast: return "bitCast"
         case .extract: return "extract"
         case .insert: return "insert"
         case .branchEnum: return "branchEnum"
         case .apply: return "apply"
-        case .allocateStack: return "allocateStack"
-        case .allocateHeap: return "allocateHeap"
-        case .allocateBox: return "allocateBox"
-        case .projectBox: return "projectBox"
-        case .createStack: return "createStack"
-        case .destroyStack: return "destroyStack"
-        case .push: return "push"
-        case .pop: return "pop"
-        case .retain: return "retain"
-        case .release: return "release"
-        case .deallocate: return "deallocate"
         case .load: return "load"
         case .store: return "store"
         case .elementPointer: return "elementPointer"
-        case .copy: return "copy"
         case .trap: return "trap"
-        case let .numericBinaryOp(op): return String(describing: op)
-        case let .numericUnaryOp(op): return String(describing: op)
         case let .booleanBinaryOp(op): return String(describing: op)
-        case let .compare(op): return String(describing: op)
         case .not: return "not"
-        case .random: return "random"
-        case .select: return "select"
         }
     }
 }

@@ -1,8 +1,8 @@
 //
 //  IRUnit.swift
-//  DLVM
+//  GPIR
 //
-//  Copyright 2016-2018 The DLVM Team.
+//  Copyright 2018 The GPIR Team.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -21,13 +21,13 @@ public protocol EquatableByReference : AnyObject, Equatable {}
 public protocol HashableByReference : EquatableByReference, Hashable {}
 
 public extension EquatableByReference {
-    public static func == (lhs: Self, rhs: Self) -> Bool {
+    static func == (lhs: Self, rhs: Self) -> Bool {
         return lhs === rhs
     }
 }
 
 public extension HashableByReference {
-    public var hashValue: Int {
+    var hashValue: Int {
         return ObjectIdentifier(self).hashValue
     }
 }

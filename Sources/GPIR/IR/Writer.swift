@@ -1,8 +1,8 @@
 //
 //  Writer.swift
-//  DLVM
+//  GPIR
 //
-//  Copyright 2016-2018 The DLVM Team.
+//  Copyright 2018 The GPIR Team.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,35 +17,19 @@
 //  limitations under the License.
 //
 
-import CoreTensor
-
 extension LiteralValue : TextOutputStreamable {
     public func write<Target : TextOutputStream>(to target: inout Target) {
         target.write("\(literal) : \(type)")
     }
 }
 
-extension Literal.Scalar : TextOutputStreamable {
-    public func write<Target : TextOutputStream>(to target: inout Target) {
-        switch self {
-        case let .bool(b): target.write(b.description)
-        case let .int(i): target.write(i.description)
-        case let .float(f): target.write(f.description)
-        }
-    }
-}
-
 extension Literal : TextOutputStreamable {
     public func write<Target : TextOutputStream>(to target: inout Target) {
         switch self {
-        case let .scalar(lit):
-            lit.write(to: &target)
-        case let .tensor(vals):
-            target.write("<\(vals.joinedDescription)>")
+        case let .bool(b):
+            target.write(b.description)
         case let .tuple(vals):
             target.write("(\(vals.joinedDescription))")
-        case let .array(vals):
-            target.write("[\(vals.joinedDescription)]")
         case let .struct(fields):
             target.write("{\(fields.map{"#\($0.0) = \($0.1)"}.joined(separator: ", "))}")
         case let .enumCase(name, associatedTypes):
@@ -57,20 +41,6 @@ extension Literal : TextOutputStreamable {
         case .null:
             target.write("null")
         }
-    }
-}
-
-extension TensorShape : TextOutputStreamable {
-    public func write<Target : TextOutputStream>(to target: inout Target) {
-        target.write(isScalar ? "scalar" : "\(map{String($0)}.joined(separator: " x "))")
-    }
-}
-
-extension TensorIndex : TextOutputStreamable {
-    public func write<Target : TextOutputStream>(to target: inout Target) {
-        target.write("(")
-        joinedDescription.write(to: &target)
-        target.write(")")
     }
 }
 
@@ -99,18 +69,12 @@ extension Type : TextOutputStreamable {
         switch self {
         case .invalid:
             target.write("<<error>>")
-        case let .tensor([], t):
-            t.write(to: &target)
-        case let .tensor(s, t):
-            target.write("<\(s) x \(t)>")
+        case .bool:
+            target.write("bool")
         case let .tuple(elementTypes):
             target.write("(\(elementTypes.joinedDescription))")
-        case let .array(n, elementType):
-            target.write("[\(n) x \(elementType)]")
         case let .pointer(elementType):
             target.write("*\(elementType)")
-        case let .box(elementType):
-            target.write("box{\(elementType)}")
         case let .function(args, ret):
             target.write("(\(args.joinedDescription)) -> \(ret)")
         case let .alias(a):
@@ -122,8 +86,6 @@ extension Type : TextOutputStreamable {
         case let .enum(enumTy):
             target.write("$")
             enumTy.name.write(to: &target)
-        case .stack:
-            target.write("stack")
         }
     }
 }
@@ -144,17 +106,6 @@ extension DataType : TextOutputStreamable {
         case .bool: target.write("bool")
         case let .int(w): target.write("i\(w)")
         case let .float(w): target.write("f\(w.rawValue)")
-        }
-    }
-}
-
-extension ReductionCombinator : TextOutputStreamable {
-    public func write<Target>(to target: inout Target) where Target : TextOutputStream {
-        switch self {
-        case let .function(f): f.write(to: &target)
-        case let .boolean(op): String(describing: op).write(to: &target)
-        case let .numeric(op): String(describing: op).write(to: &target)
-        case let .numericBuiltin(op): "\(op.description)".write(to: &target)
         }
     }
 }
@@ -182,80 +133,16 @@ extension InstructionKind : TextOutputStreamable {
             }
         case let .literal(lit, ty):
             target.write("literal \(lit): \(ty)")
-        case let .numericUnary(f, op):
-            target.write("\(f) \(op)")
-        case let .numericBinary(f, op1, op2):
-            target.write("\(f) \(op1), \(op2)")
         case let .booleanBinary(f, op1, op2):
             target.write("\(f) \(op1), \(op2)")
         case let .not(op):
             target.write("not \(op)")
-        case let .compare(f, op1, op2):
-            target.write("\(f) \(op1), \(op2)")
-        case let .dot(op1, op2):
-            target.write("dot \(op1), \(op2)")
-        case let .reduce(comb, op, initial, dims):
-            target.write("reduce \(op) by \(comb) init \(initial) along \(dims.joinedDescription)")
-        case let .reduceWindow(comb, op, initial, dims, strides, padding):
-            target.write("reduceWindow \(op) by \(comb) init \(initial) ")
-            target.write("dims \(dims.joinedDescription) strides \(strides.joinedDescription) ")
-            target.write("padding \(padding)")
-        case let .scan(f, op, dims):
-            target.write("scan \(op) by \(f) along \(dims.joinedDescription)")
-        case let .concatenate(ops, axis: axis):
-            target.write("concatenate \(ops.joinedDescription) along \(axis)")
-        case let .transpose(op):
-            target.write("transpose \(op)")
-        case let .reverse(op, dims: dims):
-            target.write("reverse \(op) along \(dims.joinedDescription)")
-        case let .slice(v, at: range):
-            target.write("slice \(v) from \(range.lowerBound) upto \(range.upperBound)")
-        case let .convolve(v, kernel: k, strides: s, padding: p,
-                           leftDilation: ld, rightDilation: rd, groups: g):
-            target.write("convolve \(v) kernel \(k)")
-            if let s = s {
-                target.write(" strides \(s.joinedDescription)")
-            }
-            if let p = p {
-                target.write(" padding \(p.map({ ($0.low, $0.high) }).joinedDescription)")
-            }
-            if let ld = ld {
-                target.write(" leftDilation \(ld.joinedDescription)")
-            }
-            if let rd = rd {
-                target.write(" rightDilation \(rd.joinedDescription)")
-            }
-            if let g = g {
-                target.write(" groups \(g)")
-            }
-        case let .dataTypeCast(op, t):
-            target.write("dataTypeCast \(op) to \(t)")
-        case let .rank(v):
-            target.write("rank of \(v)")
-        case let .shape(v):
-            target.write("shape of \(v)")
-        case let .unitCount(v):
-            target.write("unitCount of \(v)")
-        case let .padShape(op, at: index):
-            target.write("padShape \(op) at \(index)")
-        case let .squeezeShape(op, at: index):
-            target.write("squeezeShape \(op) at \(index)")
-        case let .shapeCast(op, s):
-            target.write("shapeCast \(op) to \(s)")
         case let .apply(f, args):
             var retType: Type = .invalid
             if case let .function(_, fRetType) = f.type {
                 retType = fRetType
             }
             target.write("apply \(f.identifier)(\(args.joinedDescription)) -> \(retType)")
-        case .createStack:
-            target.write("createStack")
-        case let .destroyStack(stack):
-            target.write("destroyStack \(stack)")
-        case let .push(v, to: stack):
-            target.write("push \(v) to \(stack)")
-        case let .pop(t, from: stack):
-            target.write("pop \(t) from \(stack)")
         case let .extract(use, indices):
             target.write("extract \(indices.joinedDescription) from \(use)")
         case let .insert(src, to: dest, at: indices):
@@ -265,34 +152,12 @@ extension InstructionKind : TextOutputStreamable {
             for (name, bb) in branches {
                 target.write(" case ?\(name) '\(bb.printedName)")
             }
-        case let .allocateStack(t, n):
-            target.write("allocateStack \(t) count \(n)")
-        case let .store(v, p):
-            target.write("store \(v) to \(p)")
         case let .load(v):
             target.write("load \(v)")
+        case let .store(v, p):
+            target.write("store \(v) to \(p)")
         case let .elementPointer(v, ii):
             target.write("elementPointer \(v) at \(ii.joinedDescription)")
-        case let .bitCast(v, t):
-            target.write("bitCast \(v) to \(t)")
-        case let .allocateHeap(t, count: c):
-            target.write("allocateHeap \(t) count \(c)")
-        case let .allocateBox(t):
-            target.write("allocateBox \(t)")
-        case let .deallocate(v):
-            target.write("deallocate \(v)")
-        case let .projectBox(v):
-            target.write("projectBox \(v)")
-        case let .retain(v):
-            target.write("retain \(v)")
-        case let .release(v):
-            target.write("release \(v)")
-        case let .copy(from: src, to: dest, count: count):
-            target.write("copy from \(src) to \(dest) count \(count)")
-        case let .random(shape, from: lo, upTo: hi):
-            target.write("random \(shape) from \(lo) upto \(hi)")
-        case let .select(left, right, by: flags):
-            target.write("select \(left), \(right) by \(flags)")
         case .trap:
             target.write("trap")
         }
@@ -397,21 +262,6 @@ extension Function : TextOutputStreamable {
         switch declarationKind {
         case .external?:
             target.write("[extern]\n")
-        case let .adjoint(config)?:
-            target.write("[adjoint @\(config.primal.printedName)")
-            config.sourceIndex.ifAny {
-                target.write(" from \($0)")
-            }
-            config.argumentIndices.ifAny {
-                target.write(" wrt \($0.joinedDescription)")
-            }
-            if !config.keptIndices.isEmpty {
-                target.write(" keeping \(config.keptIndices.joinedDescription)")
-            }
-            if config.isSeedable {
-                target.write(" seedable")
-            }
-            target.write("]\n")
         default:
             break
         }

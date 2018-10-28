@@ -1,8 +1,8 @@
 //
 //  Literal.swift
-//  DLVM
+//  GPIR
 //
-//  Copyright 2016-2018 The DLVM Team.
+//  Copyright 2018 The GPIR Team.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,27 +17,18 @@
 //  limitations under the License.
 //
 
-import CoreTensor
-
 /// Scalar or tensor literal, literally
 /// - Note: It has no type or shape, because a `Literal` is not a `Value`.
 /// But `LiteralValue`, that uses `Literal`, is a value.
 public indirect enum Literal {
-    public enum Scalar : Hashable {
-        case int(IntegerLiteralType)
-        case float(FloatLiteralType)
-        case bool(BooleanLiteralType)
-    }
     case undefined
     case null
     case zero
-    case scalar(Scalar)
-    case tensor([Use])
+    case bool(BooleanLiteralType)
     case tuple([Use])
-    case array([Use])
-    // Add constant expression
     case `struct`([(String, Use)])
     case enumCase(String, [Use])
+    // TODO: Add constant expression.
 }
 
 extension Literal : Equatable {
@@ -47,13 +38,9 @@ extension Literal : Equatable {
              (.undefined, .undefined),
              (.null, .null):
             return true
-        case let (.scalar(s1), .scalar(s2)):
-            return s1 == s2
-        case let (.tensor(t1), .tensor(t2)):
-            return t1 == t2
+        case let (.bool(b1), .bool(b2)):
+            return b1 == b2
         case let (.tuple(tt1), .tuple(tt2)):
-            return tt1 == tt2
-        case let (.array(tt1), .array(tt2)):
             return tt1 == tt2
         case let (.struct(ss1), .struct(ss2)):
             return ss1.elementsEqual(ss2, by: { $0 == $1 })
@@ -64,63 +51,12 @@ extension Literal : Equatable {
     }
 }
 
-public extension Literal.Scalar {
-    var typeBase: DataType.Base {
-        switch self {
-        case .bool: return .bool
-        case .int: return .int
-        case .float: return .float
-        }
-    }
-}
-
 // MARK: - Literal conversion
 
-extension Literal.Scalar : ExpressibleByIntegerLiteral {
-    public init(integerLiteral value: IntegerLiteralType) {
-        self = .int(value)
-    }
-}
-
-extension Literal.Scalar : ExpressibleByBooleanLiteral {
-    public init(booleanLiteral value: BooleanLiteralType) {
-        self = .bool(value)
-    }
-}
-
-extension Literal.Scalar : ExpressibleByFloatLiteral {
-    public init(floatLiteral value: FloatLiteralType) {
-        self = .float(value)
-    }
-}
-
-extension Literal : ExpressibleByIntegerLiteral {
-    public init(integerLiteral value: IntegerLiteralType) {
-        self = .scalar(Scalar(integerLiteral: value))
-    }
-}
 
 extension Literal : ExpressibleByBooleanLiteral {
     public init(booleanLiteral value: BooleanLiteralType) {
-        self = .scalar(Scalar(booleanLiteral: value))
-    }
-}
-
-extension Literal : ExpressibleByFloatLiteral {
-    public init(floatLiteral value: FloatLiteralType) {
-        self = .scalar(Scalar(floatLiteral: value))
-    }
-}
-
-extension Literal : ExpressibleByArrayLiteral {
-    public init(arrayLiteral elements: Use...) {
-        self = .array(elements)
-    }
-}
-
-extension Literal : ExpressibleByDictionaryLiteral {
-    public init(dictionaryLiteral elements: (String, Use)...) {
-        self = .struct(elements)
+        self = .bool(value)
     }
 }
 
@@ -154,75 +90,30 @@ extension LiteralValue : Equatable {
     }
 }
 
-public extension DataType {
-    func isExpressible(as scalar: Literal.Scalar) -> Bool {
-        /// - TODO: Currently we are only checking type base,
-        /// but we should really verify bit width as well
-        switch (base, scalar) {
-        case (.float, .float),
-             (.float, .int),
-             (.int, .int),
-             (.bool, .bool):
-            return true
-        default:
-            return false
-        }
-    }
-}
-
 public extension Literal {
     func substituting(_ new: Use, for old: Use) -> Literal {
         let condSubst = {$0 == old ? new : $0}
         switch self {
-        case .array(let vv): return .array(vv.map(condSubst))
-        case .tensor(let vv): return .tensor(vv.map(condSubst))
         case .tuple(let vv): return .tuple(vv.map(condSubst))
         case .struct(let fields):
             return .struct(Array(fields.map{($0.0, condSubst($0.1))}))
         case let .enumCase(name, associatedTypes):
             return .enumCase(name, associatedTypes.map(condSubst))
-        case .null, .undefined, .zero, .scalar: return self
+        case .null, .undefined, .zero, .bool: return self
         }
     }
 
     var isAggregate: Bool {
         switch self {
-        case .array, .tensor, .tuple, .struct, .enumCase:
+        case .tuple, .struct, .enumCase:
             return true
         default:
             return false
         }
-    }
-
-    var isZero: Bool {
-        switch self {
-        case .scalar(.int(0)), .scalar(.float(0)), .zero:
-            return true
-        default:
-            return false
-        }
-    }
-
-    var isOne: Bool {
-        switch self {
-        case .scalar(.int(1)), .scalar(.float(1)):
-            return true
-        default:
-            return false
-        }
-    }
-
-    var isScalar: Bool {
-        guard case .scalar = self else { return false }
-        return true
     }
 
     static func ~= (pattern: IntegerLiteralType, literal: Literal) -> Bool {
         switch literal {
-        case .scalar(.int(pattern)):
-            return true
-        case let .scalar(.float(v)) where v == FloatLiteralType(pattern):
-            return true
         case .zero where pattern == 0:
             return true
         default:
@@ -233,7 +124,6 @@ public extension Literal {
     static func ~= (pattern: FloatLiteralType, literal: Literal) -> Bool {
         switch (pattern, literal) {
         case (0.0, .zero): return true
-        case (let v1, .scalar(.float(let v2))): return v1 == v2
         default: return false
         }
     }
@@ -266,79 +156,15 @@ public extension Use {
 public extension Value {
     /// Make a literal of the same type
     func makeLiteral(_ literal: Literal, using builder: IRBuilder) -> Value {
-        if type.isScalar {
+        if case .bool = type {
             return LiteralValue(type: type, literal: literal)
         }
         return builder.literal(literal, type)
-    }
-
-    /// Make a scalar literal of scalar type
-    /// - Precondition: value type is tensor
-    func makeScalar(_ scalar: Literal.Scalar) -> LiteralValue {
-        guard case let .tensor(_, dtype) = type.canonical else {
-            preconditionFailure("The type of \(self) is not tensor")
-        }
-        return LiteralValue(type: .scalar(dtype), literal: .scalar(scalar))
     }
 }
 
 public extension Use {
     func makeLiteral(_ literal: Literal, using builder: IRBuilder) -> Value {
         return value.makeLiteral(literal, using: builder)
-    }
-
-    func makeScalar(_ scalar: Literal.Scalar) -> LiteralValue {
-        return value.makeScalar(scalar)
-    }
-}
-
-// MARK: - Tensor to literal conversions
-// WIP: rewrite using numeric protocols, may become deprecated
-
-public extension TensorProtocol where UnitType == Int {
-    var literal: Literal {
-        if shape.isScalar {
-            return .scalar(.int(unit(at: 0)))
-        } else {
-            let type: Type = .tensor(shape, .int(UInt(Int.bitWidth)))
-            let elementTensors: [Use] = map { .literal(type, $0.literal) }
-            return .tensor(elementTensors)
-        }
-    }
-}
-
-public extension TensorProtocol where UnitType == Float {
-    var literal: Literal {
-        if shape.isScalar {
-            return .scalar(.float(Double(unit(at: 0))))
-        } else {
-            let type: Type = .tensor(shape, .float(.single))
-            let elementTensors: [Use] = map { .literal(type, $0.literal) }
-            return .tensor(elementTensors)
-        }
-    }
-}
-
-public extension TensorProtocol where UnitType == Double {
-    var literal: Literal {
-        if shape.isScalar {
-            return .scalar(.float(Double(unit(at: 0))))
-        } else {
-            let type: Type = .tensor(shape, .float(.double))
-            let elementTensors: [Use] = map { .literal(type, $0.literal) }
-            return .tensor(elementTensors)
-        }
-    }
-}
-
-public extension TensorProtocol where UnitType == BooleanLiteralType {
-    var literal: Literal {
-        if shape.isScalar {
-            return .scalar(.bool(unit(at: 0)))
-        } else {
-            let type: Type = .tensor(shape, .bool)
-            let elementTensors: [Use] = map { .literal(type, $0.literal) }
-            return .tensor(elementTensors)
-        }
     }
 }

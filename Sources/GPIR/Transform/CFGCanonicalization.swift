@@ -1,8 +1,8 @@
 //
 //  CFGCanonicalization.swift
-//  DLVM
+//  GPIR
 //
-//  Copyright 2016-2018 The DLVM Team.
+//  Copyright 2018 The GPIR Team.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ open class CFGCanonicalization : TransformPass {
 
         /// Form join blocks, if necessary.
         var postDomTrees = body.analysis(from: PostdominanceAnalysis.self)
-        guard postDomTrees.count == 1 else { DLImpossible() }
+        guard postDomTrees.count == 1 else { GPIRImpossible() }
         var visited: Set<BasicBlock> = []
         for bb in cfg.traversed(from: body[0], in: .breadthFirst) {
             bb.successors.lazy
@@ -177,12 +177,12 @@ open class CFGCanonicalization : TransformPass {
         /// Gather blocks in loop containing back-edges to header.
         let latches = cfg.predecessors(of: loop.header)
             .lazy.filter { loop.contains($0) }
-        guard latches.count > 1 else { DLImpossible() }
+        guard latches.count > 1 else { GPIRImpossible() }
         /// Create unique latch and hoist back-edge blocks to it.
         /// - Note: The latch may instead be inserted at a random index for
         /// efficiency.
         let lastLatch = latches.max { $0.indexInParent < $1.indexInParent }
-            ?? DLImpossibleResult()
+            ?? GPIRImpossibleResult()
         let latch = loop.header.hoistPredecessorsToNewBlock(
             named: "latch", hoisting: latches, after: lastLatch, controlFlow: &cfg)
         /// Add latch to current loop and its parents (if they exist).
